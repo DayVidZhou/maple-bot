@@ -1,0 +1,28 @@
+.focus-region-controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.focus-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #9aa0a6;
+}
+
+.focus-control input {
+  width: 5rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #2a2f3d;
+  border-radius: 6px;
+  background: #0f1117;
+  color: #e8eaed;
+  font-size: 0.9rem;
+}
+
+.focus-control input:focus {
+  outline: none;
+  border-color: #4f8cff;
+}
