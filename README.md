@@ -28,6 +28,8 @@ React UI (renderer)  →  preload IPC  →  Electron main  →  @nut-tree-fork/n
 - `electron/keyboard.ts` — key press simulation
 - `src/` — React UI (unchanged structure)
 
+
+
 ## Building
 
 ```bash
@@ -41,3 +43,4 @@ Production output goes to `dist/` (renderer) and `dist-electron/` (main/preload)
 - Focus the target game window before sending keys — input goes to whichever app has focus.
 - Keyboard control only works when running inside Electron, not in a regular browser tab.
 - Automating games may violate terms of service or trigger anti-cheat systems.
+

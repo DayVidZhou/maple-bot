@@ -1,0 +1,31 @@
+.focus-region-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.focus-region-view .focus-container,
+.focus-region-view.focus-container {
+  position: relative;
+  background: #0a0c10;
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border: 1px solid #2a2f3d;
+}
+
+.focus-canvas-clickable {
+  cursor: crosshair;
+}
+
+.focus-region-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.8rem;
+  color: #9aa0a6;
+}
+
+.routines-dialog .focus-region-view.focus-container {
+  min-height: 220px;
+}

@@ -1,6 +1,11 @@
 import { app, BrowserWindow, ipcMain, session } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import {
+  focusApplication,
+  getOpenApplicationNames,
+  MAPLESTORY_WORLDS_APP_NAME,
+} from './apps'
 import { tapKey, typeText } from './keyboard'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -43,6 +48,23 @@ function registerDisplayMediaHandler() {
 }
 
 function registerIpcHandlers() {
+  ipcMain.handle('apps:list', async () => {
+    const names = await getOpenApplicationNames()
+    console.log('Open applications:')
+    for (const name of names) {
+      console.log(name)
+    }
+    return names
+  })
+
+  ipcMain.handle('apps:focus', async (_event, name: string) => {
+    await focusApplication(name)
+  })
+
+  ipcMain.handle('apps:focus-maplestory', async () => {
+    await focusApplication(MAPLESTORY_WORLDS_APP_NAME)
+  })
+
   ipcMain.handle('keyboard:tap', async (_event, key: string) => {
     await tapKey(key)
   })

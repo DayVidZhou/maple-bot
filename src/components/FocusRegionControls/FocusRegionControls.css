@@ -26,3 +26,22 @@
   outline: none;
   border-color: #4f8cff;
 }
+
+.yellow-shape-coords {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+  color: #9aa0a6;
+  min-width: 8rem;
+}
+
+.yellow-shape-label {
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.yellow-shape-empty {
+  color: #6b7280;
+  font-style: italic;
+}

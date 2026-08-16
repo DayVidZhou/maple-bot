@@ -1,24 +1,15 @@
-import { useRef, type RefObject } from 'react'
-import type { FocusRegionSize } from '../../types/focusRegion'
-import { useFocusRegionCrop } from '../../hooks/useFocusRegionCrop'
+import { useState } from 'react'
+import { useFocusRegionContext } from '../../context/FocusRegionContext'
+import type { YellowShapeDetection } from '../../utils/detectYellowShape'
 import { FocusRegionControls } from '../FocusRegionControls/FocusRegionControls'
+import { FocusRegionView } from '../FocusRegionView/FocusRegionView'
+import '../FocusRegionView/FocusRegionView.css'
 
-interface FocusRegionPanelProps {
-  isCapturing: boolean
-  focusSize: FocusRegionSize
-  onFocusSizeChange: (size: FocusRegionSize) => void
-  videoRef: RefObject<HTMLVideoElement | null>
-}
-
-export function FocusRegionPanel({
-  isCapturing,
-  focusSize,
-  onFocusSizeChange,
-  videoRef,
-}: FocusRegionPanelProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-
-  useFocusRegionCrop(videoRef, canvasRef, isCapturing, focusSize)
+export function FocusRegionPanel() {
+  const { focusSize, setFocusSize } = useFocusRegionContext()
+  const [yellowShape, setYellowShape] = useState<YellowShapeDetection | null>(
+    null,
+  )
 
   return (
     <section className="panel">
@@ -27,16 +18,12 @@ export function FocusRegionPanel({
         Live crop of the top-left {focusSize.widthPercent}% ×{' '}
         {focusSize.heightPercent}% — this region will drive automation routines
       </p>
-      <FocusRegionControls focusSize={focusSize} onChange={onFocusSizeChange} />
-      <div className="focus-container">
-        {isCapturing ? (
-          <canvas ref={canvasRef} className="focus-canvas" />
-        ) : (
-          <div className="placeholder focus-placeholder">
-            <p>Focus region appears here during capture</p>
-          </div>
-        )}
-      </div>
+      <FocusRegionControls
+        focusSize={focusSize}
+        yellowShape={yellowShape}
+        onChange={setFocusSize}
+      />
+      <FocusRegionView onYellowShapeChange={setYellowShape} />
     </section>
   )
 }

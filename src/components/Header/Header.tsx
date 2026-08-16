@@ -1,16 +1,6 @@
 import { CaptureControls } from '../CaptureControls/CaptureControls'
 
-interface HeaderProps {
-  isCapturing: boolean
-  onStartCapture: () => void
-  onStopCapture: () => void
-}
-
-export function Header({
-  isCapturing,
-  onStartCapture,
-  onStopCapture,
-}: HeaderProps) {
+export function Header() {
   return (
     <header className="header">
       <div>
@@ -19,11 +9,7 @@ export function Header({
           Screen mirror with top-left focus region for routine automation
         </p>
       </div>
-      <CaptureControls
-        isCapturing={isCapturing}
-        onStart={onStartCapture}
-        onStop={onStopCapture}
-      />
+      <CaptureControls />
     </header>
   )
 }

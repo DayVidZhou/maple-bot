@@ -1,21 +1,12 @@
-import type { RefObject } from 'react'
-import type { FocusRegionSize } from '../../types/focusRegion'
+import { useFocusRegionContext } from '../../context/FocusRegionContext'
+import { useScreenCaptureContext } from '../../context/ScreenCaptureContext'
 import { useVideoStream } from '../../hooks/useVideoStream'
 import './ScreenMirror.css'
 
-interface ScreenMirrorProps {
-  stream: MediaStream | null
-  isCapturing: boolean
-  focusSize: FocusRegionSize
-  videoRef: RefObject<HTMLVideoElement | null>
-}
+export function ScreenMirror() {
+  const { stream, isCapturing, videoRef } = useScreenCaptureContext()
+  const { focusSize } = useFocusRegionContext()
 
-export function ScreenMirror({
-  stream,
-  isCapturing,
-  focusSize,
-  videoRef,
-}: ScreenMirrorProps) {
   useVideoStream(videoRef, stream)
 
   return (

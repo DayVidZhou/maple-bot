@@ -66,6 +66,21 @@
   background: #c93c35;
 }
 
+.btn-secondary {
+  background: #2a2f3d;
+  color: #e5e7eb;
+}
+
+.btn-secondary:hover {
+  background: #363c4d;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .error-banner {
   background: #3d1f1f;
   border: 1px solid #e5534b;
