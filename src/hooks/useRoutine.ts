@@ -108,6 +108,23 @@ export function useRoutine() {
     setSelectedMoveId(null)
   }, [])
 
+  const startNewRoutine = useCallback((name: string) => {
+    const trimmed = name.trim() || 'Untitled Routine'
+    setRoutine({
+      ...createEmptyRoutine(),
+      name: trimmed,
+    })
+    setSelectedPointId(null)
+    setSelectedMoveId(null)
+  }, [])
+
+  const setRoutineName = useCallback((name: string) => {
+    setRoutine((current) => ({
+      ...current,
+      name: name.trim() || current.name,
+    }))
+  }, [])
+
   return {
     routine,
     selectedPointId,
@@ -122,5 +139,7 @@ export function useRoutine() {
     deleteSelectedMove,
     togglePointMove,
     resetRoutine,
+    startNewRoutine,
+    setRoutineName,
   }
 }

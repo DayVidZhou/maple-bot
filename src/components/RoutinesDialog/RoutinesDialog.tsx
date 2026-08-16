@@ -1,6 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useState } from 'react'
 import { useFocusRegionContext } from '../../context/FocusRegionContext'
+import { useRegistryContext } from '../../context/RegistryContext'
 import { useRoutineContext } from '../../context/RoutineContext'
 import { useScreenCaptureContext } from '../../context/ScreenCaptureContext'
 import { formatPointCoord } from '../../types/routine'
@@ -11,6 +12,7 @@ import './RoutinesDialog.css'
 export function RoutinesDialog() {
   const { isCapturing, videoRef } = useScreenCaptureContext()
   const { focusSize } = useFocusRegionContext()
+  const { addRoutine } = useRegistryContext()
   const {
     routinesOpen,
     setRoutinesOpen,
@@ -26,12 +28,17 @@ export function RoutinesDialog() {
     deleteSelectedMove,
     togglePointMove,
     resetRoutine,
+    setRoutineName,
+    markDraftSaved,
   } = useRoutineContext()
 
   const [moveName, setMoveName] = useState('')
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [yellowShape, setYellowShape] = useState<YellowShapeDetection | null>(
     null,
   )
+
+  const canSave = routine.points.length >= 1
 
   const handleAddPoint = () => {
     if (yellowShape && videoRef.current) {
@@ -59,8 +66,26 @@ export function RoutinesDialog() {
     setMoveName('')
   }
 
+  const handleSave = () => {
+    if (!canSave) {
+      setSaveError('Add at least one point before saving.')
+      return
+    }
+
+    addRoutine(routine.name)
+    markDraftSaved()
+    resetRoutine()
+    setSaveError(null)
+    setRoutinesOpen(false)
+  }
+
+  const handleOpenChange = (open: boolean) => {
+    if (!open) setSaveError(null)
+    setRoutinesOpen(open)
+  }
+
   return (
-    <Dialog.Root open={routinesOpen} onOpenChange={setRoutinesOpen}>
+    <Dialog.Root open={routinesOpen} onOpenChange={handleOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="routines-dialog-overlay" />
         <Dialog.Content className="routines-dialog">
@@ -84,6 +109,14 @@ export function RoutinesDialog() {
 
             <section className="routines-panel routines-panel-record">
               <h3>Record</h3>
+              <label className="routines-name-field">
+                <span>Routine name</span>
+                <input
+                  type="text"
+                  value={routine.name}
+                  onChange={(event) => setRoutineName(event.target.value)}
+                />
+              </label>
               <div className="routines-actions">
                 <button
                   type="button"
@@ -113,6 +146,15 @@ export function RoutinesDialog() {
                 Click the minimap to place a point, or use Add Point to snap to
                 the tracked yellow marker.
               </p>
+              {saveError && <p className="routines-save-error">{saveError}</p>}
+              <button
+                type="button"
+                className="btn btn-primary routines-save-btn"
+                onClick={handleSave}
+                disabled={!canSave}
+              >
+                Save Routine
+              </button>
             </section>
 
             <section className="routines-panel routines-panel-points">

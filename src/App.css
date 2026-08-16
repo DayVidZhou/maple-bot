@@ -4,7 +4,7 @@
   flex-direction: column;
   padding: 1.5rem;
   gap: 1.5rem;
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
@@ -97,10 +97,26 @@
   flex: 1;
 }
 
+.main.dashboard {
+  grid-template-columns: minmax(0, 1.65fr) minmax(280px, 0.85fr);
+  align-items: stretch;
+  min-height: 520px;
+}
+
 @media (max-width: 900px) {
-  .main {
+  .main,
+  .main.dashboard {
     grid-template-columns: 1fr;
   }
+}
+
+.capture-video-hidden {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
 }
 
 .panel {
@@ -126,13 +142,28 @@
   color: #9aa0a6;
 }
 
-.mirror-container,
 .focus-container {
   position: relative;
   background: #0a0c10;
   border-radius: 8px;
   overflow: hidden;
   aspect-ratio: 16 / 9;
+  border: 1px solid #2a2f3d;
+}
+
+.focus-canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  image-rendering: pixelated;
+}
+
+.mirror-container {
+  position: relative;
+  background: #0a0c10;
+  border-radius: 8px;
+  overflow: hidden;
   border: 1px solid #2a2f3d;
 }
 
@@ -151,11 +182,26 @@
   border-radius: 2px;
 }
 
-.focus-canvas {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
+.focus-overlay--top-left {
+  top: 0;
+  left: 0;
+  right: auto;
+}
+
+.focus-region-panel {
+  min-height: 0;
+}
+
+.focus-region-panel .focus-region-view {
+  flex: 1;
+}
+
+.focus-region-panel .focus-container {
+  aspect-ratio: 16 / 10;
+  min-height: 420px;
+}
+
+.focus-region-panel .focus-canvas {
   image-rendering: pixelated;
 }
 

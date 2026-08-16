@@ -102,6 +102,38 @@
   line-height: 1.4;
 }
 
+.routines-name-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #9aa0a6;
+}
+
+.routines-name-field input {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #2a2f3d;
+  border-radius: 6px;
+  background: #0f1117;
+  color: #e8eaed;
+  font-size: 0.85rem;
+}
+
+.routines-name-field input:focus {
+  outline: none;
+  border-color: #4f8cff;
+}
+
+.routines-save-btn {
+  width: 100%;
+}
+
+.routines-save-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #ffb4b0;
+}
+
 .routines-list {
   list-style: none;
   margin: 0;

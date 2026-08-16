@@ -12,7 +12,7 @@ export function FocusRegionPanel() {
   )
 
   return (
-    <section className="panel">
+    <section className="panel focus-region-panel">
       <h2>Top-Left Focus</h2>
       <p className="panel-description">
         Live crop of the top-left {focusSize.widthPercent}% ×{' '}

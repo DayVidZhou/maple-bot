@@ -1,0 +1,54 @@
+.screen-mirror-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 1000;
+}
+
+.screen-mirror-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(960px, calc(100vw - 2rem));
+  background: #1a1d27;
+  border: 1px solid #2a2f3d;
+  border-radius: 14px;
+  z-index: 1001;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+  padding: 1rem;
+}
+
+.screen-mirror-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.screen-mirror-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.screen-mirror-close {
+  border: none;
+  background: transparent;
+  color: #9aa0a6;
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.15rem 0.45rem;
+  border-radius: 6px;
+}
+
+.screen-mirror-close:hover {
+  background: #2a2f3d;
+  color: #fff;
+}
+
+.mirror-container-dialog {
+  aspect-ratio: 16 / 9;
+}

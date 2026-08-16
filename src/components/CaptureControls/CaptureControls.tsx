@@ -1,9 +1,12 @@
 import { useElectronAppsContext } from '../../context/ElectronAppsContext'
+import { useRegistryContext } from '../../context/RegistryContext'
 import { useRoutineContext } from '../../context/RoutineContext'
 import { useScreenCaptureContext } from '../../context/ScreenCaptureContext'
+import { defaultRegistryName } from '../../types/registry'
 
 export function CaptureControls() {
-  const { isCapturing, startCapture, stopCapture } = useScreenCaptureContext()
+  const { isCapturing, startCapture, stopCapture, openMirror } =
+    useScreenCaptureContext()
   const {
     isAvailable,
     isListing,
@@ -11,11 +14,25 @@ export function CaptureControls() {
     listOpenApplications,
     focusMapleStoryWorlds,
   } = useElectronAppsContext()
-  const { openRoutines } = useRoutineContext()
+  const { routines } = useRegistryContext()
+  const { startNewRoutineDraft } = useRoutineContext()
+
+  const handleAddRoutine = () => {
+    startNewRoutineDraft(
+      defaultRegistryName('routine', routines.length),
+    )
+  }
 
   return (
     <div className="controls">
-      <button type="button" className="btn btn-secondary" onClick={openRoutines}>
+      <button type="button" className="btn btn-secondary" onClick={openMirror}>
+        Screen Mirror
+      </button>
+      <button
+        type="button"
+        className="btn btn-secondary"
+        onClick={handleAddRoutine}
+      >
         Add a Routine
       </button>
       {isAvailable && (

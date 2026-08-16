@@ -7,6 +7,7 @@ import {
   MAPLESTORY_WORLDS_APP_NAME,
 } from './apps'
 import { tapKey, typeText } from './keyboard'
+import { createRegistrySaveHandlers } from './registrySave'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -48,6 +49,20 @@ function registerDisplayMediaHandler() {
 }
 
 function registerIpcHandlers() {
+  const registrySave = createRegistrySaveHandlers(process.env.APP_ROOT!)
+
+  ipcMain.handle('registry:load-routines', () => registrySave.loadRoutines())
+
+  ipcMain.handle('registry:save-routines', (_event, items) =>
+    registrySave.saveRoutines(items),
+  )
+
+  ipcMain.handle('registry:load-hotkeys', () => registrySave.loadHotkeys())
+
+  ipcMain.handle('registry:save-hotkeys', (_event, items) =>
+    registrySave.saveHotkeys(items),
+  )
+
   ipcMain.handle('apps:list', async () => {
     const names = await getOpenApplicationNames()
     console.log('Open applications:')

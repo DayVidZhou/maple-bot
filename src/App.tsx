@@ -1,13 +1,15 @@
 import { ErrorBanner } from './components/ErrorBanner/ErrorBanner'
 import { FocusRegionPanel } from './components/FocusRegionPanel/FocusRegionPanel'
 import { Header } from './components/Header/Header'
-import { KeyboardPanel } from './components/KeyboardPanel/KeyboardPanel'
+import { RegistrySidebar } from './components/RegistrySidebar/RegistrySidebar'
 import { RoutinesDialog } from './components/RoutinesDialog/RoutinesDialog'
-import { ScreenMirror } from './components/ScreenMirror/ScreenMirror'
+import { HotkeysDialog } from './components/HotkeysDialog/HotkeysDialog'
+import { ScreenMirrorDialog } from './components/ScreenMirrorDialog/ScreenMirrorDialog'
 import { StatusBar } from './components/StatusBar/StatusBar'
 import { useElectronAppsContext } from './context/ElectronAppsContext'
 import { useScreenCaptureContext } from './context/ScreenCaptureContext'
 import './App.css'
+import './components/RegistrySidebar/RegistrySidebar.css'
 
 function App() {
   const { error: captureError } = useScreenCaptureContext()
@@ -20,15 +22,16 @@ function App() {
 
       {error && <ErrorBanner message={error} />}
 
-      <main className="main">
-        <ScreenMirror />
+      <main className="main dashboard">
         <FocusRegionPanel />
-        <KeyboardPanel />
+        <RegistrySidebar />
       </main>
 
       <StatusBar />
 
       <RoutinesDialog />
+      <HotkeysDialog />
+      <ScreenMirrorDialog />
     </div>
   )
 }
