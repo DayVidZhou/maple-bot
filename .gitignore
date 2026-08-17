@@ -26,5 +26,4 @@ release
 *.sw?
 
 # Local registry save files (per-user, auto-generated)
-.routine-save-file.ts
-.minimap-save-file.ts
+.*-save-file.ts
