@@ -1,29 +1,82 @@
 import * as Dialog from '@radix-ui/react-dialog'
+import type { HotkeyActionEntry } from '../../types/hotkey'
 import { useRegistryContext } from '../../context/RegistryContext'
 import { useHotkeyContext } from '../../context/HotkeyContext'
 import { toRegistryHotkey } from '../../hooks/useHotkey'
 import { ActionEntryFields } from './ActionEntryFields'
 import './HotkeysDialog.css'
 
+interface HotkeySectionProps {
+  title: string
+  addLabel: string
+  entries: HotkeyActionEntry[]
+  onAdd: () => void
+  onChange: (id: string, patch: Partial<Omit<HotkeyActionEntry, 'id'>>) => void
+  onRemove: (id: string) => void
+}
+
+function HotkeySection({
+  title,
+  addLabel,
+  entries,
+  onAdd,
+  onChange,
+  onRemove,
+}: HotkeySectionProps) {
+  return (
+    <section className="hotkeys-list-panel">
+      <div className="hotkeys-list-header">
+        <h3>{title}</h3>
+        <button
+          type="button"
+          className="btn btn-secondary hotkeys-add-entry"
+          onClick={onAdd}
+        >
+          {addLabel}
+        </button>
+      </div>
+      <div className="hotkeys-entry-list">
+        {entries.map((entry) => (
+          <ActionEntryFields
+            key={entry.id}
+            entry={entry}
+            onChange={(patch) => onChange(entry.id, patch)}
+            onRemove={() => onRemove(entry.id)}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export function HotkeysDialog() {
-  const { addHotkey } = useRegistryContext()
+  const { addHotkey, updateHotkey } = useRegistryContext()
   const {
     hotkeysOpen,
     setHotkeysOpen,
+    editingHotkeyId,
     hotkey,
     setHotkeyName,
     addMove,
     addBuff,
+    addAttack,
     updateMove,
     updateBuff,
+    updateAttack,
     removeMove,
     removeBuff,
+    removeAttack,
     resetHotkey,
     markDraftSaved,
   } = useHotkeyContext()
 
   const handleSave = () => {
-    addHotkey(toRegistryHotkey(hotkey))
+    const payload = toRegistryHotkey(hotkey)
+    if (editingHotkeyId) {
+      updateHotkey(editingHotkeyId, payload)
+    } else {
+      addHotkey(payload)
+    }
     markDraftSaved()
     resetHotkey()
     setHotkeysOpen(false)
@@ -56,56 +109,36 @@ export function HotkeysDialog() {
             </label>
 
             <p className="hotkeys-hint">
-              Configure any optional moves and buffs from your key setup. Button,
-              cooldown, and cast time can be left blank for entries you do not use.
+              Configure optional regular moves, buffs, and attacks from your key
+              setup. Button, cooldown, and cast time can be left blank for entries
+              you do not use.
             </p>
 
             <div className="hotkeys-lists">
-              <section className="hotkeys-list-panel">
-                <div className="hotkeys-list-header">
-                  <h3>Moves</h3>
-                  <button
-                    type="button"
-                    className="btn btn-secondary hotkeys-add-entry"
-                    onClick={addMove}
-                  >
-                    Add Move
-                  </button>
-                </div>
-                <div className="hotkeys-entry-list">
-                  {hotkey.moves.map((entry) => (
-                    <ActionEntryFields
-                      key={entry.id}
-                      entry={entry}
-                      onChange={(patch) => updateMove(entry.id, patch)}
-                      onRemove={() => removeMove(entry.id)}
-                    />
-                  ))}
-                </div>
-              </section>
-
-              <section className="hotkeys-list-panel">
-                <div className="hotkeys-list-header">
-                  <h3>Buffs</h3>
-                  <button
-                    type="button"
-                    className="btn btn-secondary hotkeys-add-entry"
-                    onClick={addBuff}
-                  >
-                    Add Buff
-                  </button>
-                </div>
-                <div className="hotkeys-entry-list">
-                  {hotkey.buffs.map((entry) => (
-                    <ActionEntryFields
-                      key={entry.id}
-                      entry={entry}
-                      onChange={(patch) => updateBuff(entry.id, patch)}
-                      onRemove={() => removeBuff(entry.id)}
-                    />
-                  ))}
-                </div>
-              </section>
+              <HotkeySection
+                title="Regular"
+                addLabel="Add Regular"
+                entries={hotkey.moves}
+                onAdd={addMove}
+                onChange={updateMove}
+                onRemove={removeMove}
+              />
+              <HotkeySection
+                title="Buffs"
+                addLabel="Add Buff"
+                entries={hotkey.buffs}
+                onAdd={addBuff}
+                onChange={updateBuff}
+                onRemove={removeBuff}
+              />
+              <HotkeySection
+                title="Attacks"
+                addLabel="Add Attack"
+                entries={hotkey.attacks}
+                onAdd={addAttack}
+                onChange={updateAttack}
+                onRemove={removeAttack}
+              />
             </div>
           </div>
 
@@ -115,7 +148,7 @@ export function HotkeysDialog() {
               className="btn btn-primary hotkeys-save-btn"
               onClick={handleSave}
             >
-              Save Hotkey
+              Save {editingHotkeyId ? 'Changes' : 'Hotkey'}
             </button>
           </div>
         </Dialog.Content>

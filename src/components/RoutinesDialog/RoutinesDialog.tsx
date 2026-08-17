@@ -3,19 +3,25 @@ import { useState } from 'react'
 import { useFocusRegionContext } from '../../context/FocusRegionContext'
 import { useRegistryContext } from '../../context/RegistryContext'
 import { useRoutineContext } from '../../context/RoutineContext'
+import { toRegistryRoutine } from '../../hooks/useRoutine'
 import { useScreenCaptureContext } from '../../context/ScreenCaptureContext'
 import { formatPointCoord } from '../../types/routine'
 import type { YellowShapeDetection } from '../../utils/detectYellowShape'
 import { FocusRegionView } from '../FocusRegionView/FocusRegionView'
+import {
+  formatRoutineMoveLabel,
+  HotkeyMoveSelect,
+} from './HotkeyMoveSelect'
 import './RoutinesDialog.css'
 
 export function RoutinesDialog() {
   const { isCapturing, videoRef } = useScreenCaptureContext()
   const { focusSize } = useFocusRegionContext()
-  const { addRoutine } = useRegistryContext()
+  const { addRoutine, updateRoutine, hotkeys } = useRegistryContext()
   const {
     routinesOpen,
     setRoutinesOpen,
+    editingRoutineId,
     routine,
     selectedPointId,
     selectedMoveId,
@@ -32,7 +38,6 @@ export function RoutinesDialog() {
     markDraftSaved,
   } = useRoutineContext()
 
-  const [moveName, setMoveName] = useState('')
   const [saveError, setSaveError] = useState<string | null>(null)
   const [yellowShape, setYellowShape] = useState<YellowShapeDetection | null>(
     null,
@@ -61,18 +66,18 @@ export function RoutinesDialog() {
     addPoint({ x: 0.5, y: 0.5 })
   }
 
-  const handleAddMove = () => {
-    addMove(moveName)
-    setMoveName('')
-  }
-
   const handleSave = () => {
     if (!canSave) {
       setSaveError('Add at least one point before saving.')
       return
     }
 
-    addRoutine(routine.name)
+    const payload = toRegistryRoutine(routine)
+    if (editingRoutineId) {
+      updateRoutine(editingRoutineId, payload)
+    } else {
+      addRoutine(payload)
+    }
     markDraftSaved()
     resetRoutine()
     setSaveError(null)
@@ -153,7 +158,7 @@ export function RoutinesDialog() {
                 onClick={handleSave}
                 disabled={!canSave}
               >
-                Save Routine
+                Save {editingRoutineId ? 'Changes' : 'Routine'}
               </button>
             </section>
 
@@ -189,7 +194,7 @@ export function RoutinesDialog() {
               <h3>Moves</h3>
               <ul className="routines-list">
                 {routine.moves.length === 0 ? (
-                  <li className="routines-list-empty">No moves defined yet</li>
+                  <li className="routines-list-empty">No hotkey moves added yet</li>
                 ) : (
                   routine.moves.map((move) => (
                     <li key={move.id}>
@@ -200,32 +205,18 @@ export function RoutinesDialog() {
                         }`}
                         onClick={() => setSelectedMoveId(move.id)}
                       >
-                        {move.name}
+                        {formatRoutineMoveLabel(move, hotkeys)}
                       </button>
                     </li>
                   ))
                 )}
               </ul>
 
-              <div className="routines-add-move">
-                <input
-                  type="text"
-                  value={moveName}
-                  placeholder="Add move name"
-                  onChange={(event) => setMoveName(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') handleAddMove()
-                  }}
-                />
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={handleAddMove}
-                  disabled={!moveName.trim()}
-                >
-                  Add
-                </button>
-              </div>
+              <HotkeyMoveSelect
+                hotkeys={hotkeys}
+                existingMoves={routine.moves}
+                onAdd={addMove}
+              />
 
               <button
                 type="button"
@@ -240,7 +231,7 @@ export function RoutinesDialog() {
                 <div className="routines-point-moves">
                   <h4>Moves at selected point</h4>
                   {routine.moves.length === 0 ? (
-                    <p className="routines-hint">Create moves to assign them.</p>
+                    <p className="routines-hint">Add hotkey moves to assign them.</p>
                   ) : (
                     <ul className="routines-move-checklist">
                       {routine.moves.map((move) => {
@@ -255,7 +246,7 @@ export function RoutinesDialog() {
                                   togglePointMove(selectedPoint.id, move.id)
                                 }
                               />
-                              <span>{move.name}</span>
+                              <span>{formatRoutineMoveLabel(move, hotkeys)}</span>
                             </label>
                           </li>
                         )

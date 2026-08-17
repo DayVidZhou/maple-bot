@@ -15,6 +15,7 @@ export interface HotkeyConfig {
   name: string
   moves: HotkeyActionEntry[]
   buffs: HotkeyActionEntry[]
+  attacks: HotkeyActionEntry[]
 }
 
 export interface HotkeyActionTemplate {
@@ -22,8 +23,11 @@ export interface HotkeyActionTemplate {
   suggestedKey?: string
 }
 
-export const PREDEFINED_MOVES: HotkeyActionTemplate[] = [
+export const PREDEFINED_ATTACKS: HotkeyActionTemplate[] = [
   { name: 'Attack', suggestedKey: 'ctrl' },
+]
+
+export const PREDEFINED_MOVES: HotkeyActionTemplate[] = [
   { name: 'Jump', suggestedKey: 'alt' },
   { name: 'Dash', suggestedKey: 'r' },
   { name: 'Flash Jump', suggestedKey: 'd' },
@@ -63,7 +67,7 @@ export const PREDEFINED_BUFFS: HotkeyActionTemplate[] = [
 ]
 
 export function defaultHotkeyEntryName(
-  type: 'move' | 'buff',
+  type: 'move' | 'buff' | 'attack',
   listLength: number,
 ): string {
   return `${type}-${listLength + 1}`
@@ -97,6 +101,47 @@ function createEmptyHotkeyConfig(name: string): HotkeyConfig {
     name,
     moves: PREDEFINED_MOVES.map(createActionFromTemplate),
     buffs: PREDEFINED_BUFFS.map(createActionFromTemplate),
+    attacks: PREDEFINED_ATTACKS.map(createActionFromTemplate),
+  }
+}
+
+export function normalizeHotkeyListItem<
+  T extends {
+    moves?: HotkeyActionEntry[]
+    buffs?: HotkeyActionEntry[]
+    attacks?: HotkeyActionEntry[]
+  },
+>(hotkey: T): T & {
+  moves: HotkeyActionEntry[]
+  buffs: HotkeyActionEntry[]
+  attacks: HotkeyActionEntry[]
+} {
+  const moves = hotkey.moves ?? []
+  const buffs = hotkey.buffs ?? []
+  let attacks = hotkey.attacks ?? []
+
+  if (attacks.length === 0) {
+    const attackEntries = moves.filter(
+      (entry) => entry.name.trim().toLowerCase() === 'attack',
+    )
+    if (attackEntries.length > 0) {
+      attacks = attackEntries
+      return {
+        ...hotkey,
+        moves: moves.filter(
+          (entry) => entry.name.trim().toLowerCase() !== 'attack',
+        ),
+        buffs,
+        attacks,
+      }
+    }
+  }
+
+  return {
+    ...hotkey,
+    moves,
+    buffs,
+    attacks,
   }
 }
 

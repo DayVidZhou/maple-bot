@@ -6,14 +6,17 @@ import {
   type ReactNode,
 } from 'react'
 import { useHotkey } from '../hooks/useHotkey'
+import { normalizeHotkeyListItem } from '../types/hotkey'
+import type { HotkeyListItem } from '../types/registry'
 
 type HotkeyHookValue = ReturnType<typeof useHotkey>
 
 type HotkeyContextValue = HotkeyHookValue & {
   hotkeysOpen: boolean
-  isDraft: boolean
+  editingHotkeyId: string | null
   setHotkeysOpen: (open: boolean) => void
   startNewHotkeyDraft: (name: string) => void
+  startEditHotkeyDraft: (hotkey: HotkeyListItem) => void
   markDraftSaved: () => void
 }
 
@@ -23,43 +26,57 @@ export function HotkeyProvider({ children }: { children: ReactNode }) {
   const {
     resetHotkey,
     startNewHotkey,
+    loadHotkey,
     ...hotkeyState
   } = useHotkey()
   const [hotkeysOpen, setHotkeysOpenState] = useState(false)
-  const [isDraft, setIsDraft] = useState(false)
+  const [editingHotkeyId, setEditingHotkeyId] = useState<string | null>(null)
+
+  const closeEditor = useCallback(() => {
+    resetHotkey()
+    setEditingHotkeyId(null)
+  }, [resetHotkey])
 
   const setHotkeysOpen = useCallback(
     (open: boolean) => {
-      if (!open && isDraft) {
-        resetHotkey()
-        setIsDraft(false)
-      }
+      if (!open) closeEditor()
       setHotkeysOpenState(open)
     },
-    [isDraft, resetHotkey],
+    [closeEditor],
   )
 
   const startNewHotkeyDraft = useCallback(
     (name: string) => {
       startNewHotkey(name)
-      setIsDraft(true)
+      setEditingHotkeyId(null)
       setHotkeysOpenState(true)
     },
     [startNewHotkey],
   )
 
+  const startEditHotkeyDraft = useCallback(
+    (hotkey: HotkeyListItem) => {
+      loadHotkey(normalizeHotkeyListItem(hotkey))
+      setEditingHotkeyId(hotkey.id)
+      setHotkeysOpenState(true)
+    },
+    [loadHotkey],
+  )
+
   const markDraftSaved = useCallback(() => {
-    setIsDraft(false)
+    setEditingHotkeyId(null)
   }, [])
 
   const value: HotkeyContextValue = {
     ...hotkeyState,
     resetHotkey,
     startNewHotkey,
+    loadHotkey,
     hotkeysOpen,
-    isDraft,
+    editingHotkeyId,
     setHotkeysOpen,
     startNewHotkeyDraft,
+    startEditHotkeyDraft,
     markDraftSaved,
   }
 

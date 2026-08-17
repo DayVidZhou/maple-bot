@@ -7,6 +7,16 @@ import {
   type HotkeyConfig,
 } from '../types/hotkey'
 
+function updateEntryList(
+  entries: HotkeyActionEntry[],
+  id: string,
+  patch: Partial<Omit<HotkeyActionEntry, 'id'>>,
+): HotkeyActionEntry[] {
+  return entries.map((entry) =>
+    entry.id === id ? { ...entry, ...patch } : entry,
+  )
+}
+
 export function useHotkey() {
   const [hotkey, setHotkey] = useState<HotkeyConfig>(() =>
     createHotkeyDraft('Untitled Hotkey'),
@@ -18,6 +28,16 @@ export function useHotkey() {
 
   const startNewHotkey = useCallback((name: string) => {
     setHotkey(createHotkeyDraft(name))
+  }, [])
+
+  const loadHotkey = useCallback((item: HotkeyConfig) => {
+    setHotkey({
+      id: item.id,
+      name: item.name,
+      moves: item.moves,
+      buffs: item.buffs,
+      attacks: item.attacks,
+    })
   }, [])
 
   const setHotkeyName = useCallback((name: string) => {
@@ -51,13 +71,23 @@ export function useHotkey() {
     }))
   }, [])
 
+  const addAttack = useCallback(() => {
+    setHotkey((current) => ({
+      ...current,
+      attacks: [
+        ...current.attacks,
+        createEmptyAction(
+          defaultHotkeyEntryName('attack', current.attacks.length),
+        ),
+      ],
+    }))
+  }, [])
+
   const updateMove = useCallback(
     (id: string, patch: Partial<Omit<HotkeyActionEntry, 'id'>>) => {
       setHotkey((current) => ({
         ...current,
-        moves: current.moves.map((entry) =>
-          entry.id === id ? { ...entry, ...patch } : entry,
-        ),
+        moves: updateEntryList(current.moves, id, patch),
       }))
     },
     [],
@@ -67,9 +97,17 @@ export function useHotkey() {
     (id: string, patch: Partial<Omit<HotkeyActionEntry, 'id'>>) => {
       setHotkey((current) => ({
         ...current,
-        buffs: current.buffs.map((entry) =>
-          entry.id === id ? { ...entry, ...patch } : entry,
-        ),
+        buffs: updateEntryList(current.buffs, id, patch),
+      }))
+    },
+    [],
+  )
+
+  const updateAttack = useCallback(
+    (id: string, patch: Partial<Omit<HotkeyActionEntry, 'id'>>) => {
+      setHotkey((current) => ({
+        ...current,
+        attacks: updateEntryList(current.attacks, id, patch),
       }))
     },
     [],
@@ -89,17 +127,28 @@ export function useHotkey() {
     }))
   }, [])
 
+  const removeAttack = useCallback((id: string) => {
+    setHotkey((current) => ({
+      ...current,
+      attacks: current.attacks.filter((entry) => entry.id !== id),
+    }))
+  }, [])
+
   return {
     hotkey,
     resetHotkey,
     startNewHotkey,
+    loadHotkey,
     setHotkeyName,
     addMove,
     addBuff,
+    addAttack,
     updateMove,
     updateBuff,
+    updateAttack,
     removeMove,
     removeBuff,
+    removeAttack,
   }
 }
 
@@ -108,5 +157,6 @@ export function toRegistryHotkey(hotkey: HotkeyConfig) {
     name: hotkey.name,
     moves: hotkey.moves,
     buffs: hotkey.buffs,
+    attacks: hotkey.attacks,
   }
 }

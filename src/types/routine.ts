@@ -1,6 +1,11 @@
+export type MoveCategory = 'attack' | 'buff' | 'move'
+
 export interface Move {
   id: string
   name: string
+  hotkeyId?: string
+  hotkeyActionId?: string
+  category?: MoveCategory
 }
 
 export interface RoutinePoint {

@@ -1,8 +1,11 @@
 import type { HotkeyActionEntry } from './hotkey'
+import type { Move, RoutinePoint } from './routine'
 
 export interface RoutineListItem {
   id: string
   name: string
+  points: RoutinePoint[]
+  moves: Move[]
 }
 
 export interface HotkeyListItem {
@@ -10,6 +13,7 @@ export interface HotkeyListItem {
   name: string
   moves: HotkeyActionEntry[]
   buffs: HotkeyActionEntry[]
+  attacks: HotkeyActionEntry[]
 }
 
 export function createId(): string {

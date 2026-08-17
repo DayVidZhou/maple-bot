@@ -1,0 +1,28 @@
+.hotkey-move-select {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.hotkey-move-select-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #2a2f3d;
+  border-radius: 6px;
+  background: #0f1117;
+  color: #e8eaed;
+  font-size: 0.85rem;
+}
+
+.hotkey-move-select-input:focus {
+  outline: none;
+  border-color: #4f8cff;
+}
+
+.hotkey-move-select-add {
+  flex-shrink: 0;
+}
+
+.hotkey-move-select-empty {
+  margin: 0;
+}

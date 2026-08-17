@@ -6,6 +6,7 @@ import {
   type Routine,
   type RoutinePoint,
 } from '../types/routine'
+import type { HotkeyMoveOption } from '../utils/hotkeyMoveOptions'
 
 function createEmptyRoutine(): Routine {
   return {
@@ -53,20 +54,33 @@ export function useRoutine() {
     setSelectedPointId(null)
   }, [selectedPointId])
 
-  const addMove = useCallback((name: string) => {
-    const trimmed = name.trim()
-    if (!trimmed) return
+  const addMove = useCallback((option: HotkeyMoveOption) => {
+    let newMoveId: string | undefined
 
-    const move: Move = {
-      id: createId(),
-      name: trimmed,
-    }
+    setRoutine((current) => {
+      const alreadyAdded = current.moves.some(
+        (move) =>
+          move.hotkeyId === option.hotkeyId &&
+          move.hotkeyActionId === option.action.id,
+      )
+      if (alreadyAdded) return current
 
-    setRoutine((current) => ({
-      ...current,
-      moves: [...current.moves, move],
-    }))
-    setSelectedMoveId(move.id)
+      const move: Move = {
+        id: createId(),
+        name: option.action.name,
+        hotkeyId: option.hotkeyId,
+        hotkeyActionId: option.action.id,
+        category: option.category,
+      }
+      newMoveId = move.id
+
+      return {
+        ...current,
+        moves: [...current.moves, move],
+      }
+    })
+
+    if (newMoveId) setSelectedMoveId(newMoveId)
   }, [])
 
   const deleteSelectedMove = useCallback(() => {
@@ -118,6 +132,25 @@ export function useRoutine() {
     setSelectedMoveId(null)
   }, [])
 
+  const loadRoutine = useCallback(
+    (item: {
+      id: string
+      name: string
+      points: RoutinePoint[]
+      moves: Move[]
+    }) => {
+      setRoutine({
+        id: item.id,
+        name: item.name,
+        points: item.points,
+        moves: item.moves,
+      })
+      setSelectedPointId(null)
+      setSelectedMoveId(null)
+    },
+    [],
+  )
+
   const setRoutineName = useCallback((name: string) => {
     setRoutine((current) => ({
       ...current,
@@ -140,6 +173,15 @@ export function useRoutine() {
     togglePointMove,
     resetRoutine,
     startNewRoutine,
+    loadRoutine,
     setRoutineName,
+  }
+}
+
+export function toRegistryRoutine(routine: Routine) {
+  return {
+    name: routine.name,
+    points: routine.points,
+    moves: routine.moves,
   }
 }

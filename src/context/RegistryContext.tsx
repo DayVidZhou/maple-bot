@@ -15,6 +15,7 @@ import {
   type HotkeyListItem,
   type RoutineListItem,
 } from '../types/registry'
+import { normalizeHotkeyListItem } from '../types/hotkey'
 
 interface RegistryContextValue {
   routines: RoutineListItem[]
@@ -26,8 +27,10 @@ interface RegistryContextValue {
   hotkeySaveFile: string
   setSelectedRoutineId: (id: string | null) => void
   setSelectedHotkeyId: (id: string | null) => void
-  addRoutine: (name: string) => void
+  addRoutine: (routine: Omit<RoutineListItem, 'id'>) => void
+  updateRoutine: (id: string, routine: Omit<RoutineListItem, 'id'>) => void
   addHotkey: (hotkey: Omit<HotkeyListItem, 'id'>) => void
+  updateHotkey: (id: string, hotkey: Omit<HotkeyListItem, 'id'>) => void
   removeSelectedRoutine: () => void
   removeSelectedHotkey: () => void
 }
@@ -47,14 +50,14 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
 
   const handleLoad = useCallback(
     (data: { routines: RoutineListItem[]; hotkeys: HotkeyListItem[] }) => {
-      setRoutines(data.routines)
-      setHotkeys(
-        data.hotkeys.map((hotkey) => ({
-          ...hotkey,
-          moves: hotkey.moves ?? [],
-          buffs: hotkey.buffs ?? [],
+      setRoutines(
+        data.routines.map((routine) => ({
+          ...routine,
+          points: routine.points ?? [],
+          moves: routine.moves ?? [],
         })),
       )
+      setHotkeys(data.hotkeys.map((hotkey) => normalizeHotkeyListItem(hotkey)))
     },
     [],
   )
@@ -66,14 +69,41 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
     onSavedAtChange: setLastSavedAt,
   })
 
-  const addRoutine = useCallback((name: string) => {
-    const trimmed = name.trim()
+  const addRoutine = useCallback((routine: Omit<RoutineListItem, 'id'>) => {
+    const trimmed = routine.name.trim()
     if (!trimmed) return
 
-    const item: RoutineListItem = { id: createId(), name: trimmed }
+    const item: RoutineListItem = {
+      id: createId(),
+      name: trimmed,
+      points: routine.points,
+      moves: routine.moves,
+    }
     setRoutines((current) => [...current, item])
     setSelectedRoutineId(item.id)
   }, [])
+
+  const updateRoutine = useCallback(
+    (id: string, routine: Omit<RoutineListItem, 'id'>) => {
+      const trimmed = routine.name.trim()
+      if (!trimmed) return
+
+      setRoutines((current) =>
+        current.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                name: trimmed,
+                points: routine.points,
+                moves: routine.moves,
+              }
+            : item,
+        ),
+      )
+      setSelectedRoutineId(id)
+    },
+    [],
+  )
 
   const addHotkey = useCallback((hotkey: Omit<HotkeyListItem, 'id'>) => {
     const trimmed = hotkey.name.trim()
@@ -84,10 +114,34 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
       name: trimmed,
       moves: hotkey.moves,
       buffs: hotkey.buffs,
+      attacks: hotkey.attacks,
     }
     setHotkeys((current) => [...current, item])
     setSelectedHotkeyId(item.id)
   }, [])
+
+  const updateHotkey = useCallback(
+    (id: string, hotkey: Omit<HotkeyListItem, 'id'>) => {
+      const trimmed = hotkey.name.trim()
+      if (!trimmed) return
+
+      setHotkeys((current) =>
+        current.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                name: trimmed,
+                moves: hotkey.moves,
+                buffs: hotkey.buffs,
+                attacks: hotkey.attacks,
+              }
+            : item,
+        ),
+      )
+      setSelectedHotkeyId(id)
+    },
+    [],
+  )
 
   const removeSelectedRoutine = useCallback(() => {
     setRoutines((current) =>
@@ -116,7 +170,9 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
         setSelectedRoutineId,
         setSelectedHotkeyId,
         addRoutine,
+        updateRoutine,
         addHotkey,
+        updateHotkey,
         removeSelectedRoutine,
         removeSelectedHotkey,
       }}

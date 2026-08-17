@@ -9,6 +9,8 @@ import {
 import { normalizedToCanvasCoord } from '../utils/focusRegionCoords'
 
 const POINT_RADIUS = 8
+const CHARACTER_CIRCLE_RADIUS_SCALE = 1.45
+const CHARACTER_CIRCLE_LINE_WIDTH = 5
 
 function drawRoutinePoints(
   ctx: CanvasRenderingContext2D,
@@ -85,10 +87,13 @@ export function useFocusRegionCrop(
       const detection = detectYellowShape(imageData)
 
       if (detection) {
+        const circleRadius = detection.radius * CHARACTER_CIRCLE_RADIUS_SCALE
         ctx.beginPath()
-        ctx.arc(detection.x, detection.y, detection.radius, 0, Math.PI * 2)
-        ctx.strokeStyle = '#22c55e'
-        ctx.lineWidth = 2
+        ctx.arc(detection.x, detection.y, circleRadius, 0, Math.PI * 2)
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.25)'
+        ctx.fill()
+        ctx.strokeStyle = '#ef4444'
+        ctx.lineWidth = CHARACTER_CIRCLE_LINE_WIDTH
         ctx.stroke()
       }
 

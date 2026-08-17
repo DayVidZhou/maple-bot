@@ -33,7 +33,7 @@ function RoutinesListSection() {
     setSelectedRoutineId,
     removeSelectedRoutine,
   } = useRegistryContext()
-  const { startNewRoutineDraft } = useRoutineContext()
+  const { startNewRoutineDraft, startEditRoutineDraft } = useRoutineContext()
   const { name, setName, resolveName } = useRegistryNameInput(
     'routine',
     routines.length,
@@ -51,7 +51,7 @@ function RoutinesListSection() {
           <li className="registry-list-empty">No routines yet</li>
         ) : (
           routines.map((routine) => (
-            <li key={routine.id}>
+            <li key={routine.id} className="registry-list-row">
               <button
                 type="button"
                 className={`registry-list-item ${
@@ -60,6 +60,14 @@ function RoutinesListSection() {
                 onClick={() => setSelectedRoutineId(routine.id)}
               >
                 {routine.name}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary registry-edit-btn"
+                onClick={() => startEditRoutineDraft(routine)}
+                aria-label={`Edit ${routine.name}`}
+              >
+                Edit
               </button>
             </li>
           ))
@@ -97,7 +105,7 @@ function HotkeysListSection() {
     setSelectedHotkeyId,
     removeSelectedHotkey,
   } = useRegistryContext()
-  const { startNewHotkeyDraft } = useHotkeyContext()
+  const { startNewHotkeyDraft, startEditHotkeyDraft } = useHotkeyContext()
   const { name, setName, resolveName } = useRegistryNameInput(
     'hotkey',
     hotkeys.length,
@@ -115,7 +123,7 @@ function HotkeysListSection() {
           <li className="registry-list-empty">No hotkeys yet</li>
         ) : (
           hotkeys.map((hotkey) => (
-            <li key={hotkey.id}>
+            <li key={hotkey.id} className="registry-list-row">
               <button
                 type="button"
                 className={`registry-list-item ${
@@ -124,6 +132,14 @@ function HotkeysListSection() {
                 onClick={() => setSelectedHotkeyId(hotkey.id)}
               >
                 {hotkey.name}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary registry-edit-btn"
+                onClick={() => startEditHotkeyDraft(hotkey)}
+                aria-label={`Edit ${hotkey.name}`}
+              >
+                Edit
               </button>
             </li>
           ))

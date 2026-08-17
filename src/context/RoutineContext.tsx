@@ -6,15 +6,17 @@ import {
   type ReactNode,
 } from 'react'
 import { useRoutine } from '../hooks/useRoutine'
+import type { RoutineListItem } from '../types/registry'
 
 type RoutineHookValue = ReturnType<typeof useRoutine>
 
 type RoutineContextValue = RoutineHookValue & {
   routinesOpen: boolean
-  isDraft: boolean
+  editingRoutineId: string | null
   setRoutinesOpen: (open: boolean) => void
   openRoutines: () => void
   startNewRoutineDraft: (name: string) => void
+  startEditRoutineDraft: (routine: RoutineListItem) => void
   discardDraft: () => void
   markDraftSaved: () => void
 }
@@ -25,49 +27,66 @@ export function RoutineProvider({ children }: { children: ReactNode }) {
   const {
     resetRoutine,
     startNewRoutine,
+    loadRoutine,
     ...routineState
   } = useRoutine()
   const [routinesOpen, setRoutinesOpenState] = useState(false)
-  const [isDraft, setIsDraft] = useState(false)
+  const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null)
+
+  const closeEditor = useCallback(() => {
+    resetRoutine()
+    setEditingRoutineId(null)
+  }, [resetRoutine])
 
   const setRoutinesOpen = useCallback(
     (open: boolean) => {
-      if (!open && isDraft) {
-        resetRoutine()
-        setIsDraft(false)
-      }
+      if (!open) closeEditor()
       setRoutinesOpenState(open)
     },
-    [isDraft, resetRoutine],
+    [closeEditor],
   )
 
   const startNewRoutineDraft = useCallback(
     (name: string) => {
       startNewRoutine(name)
-      setIsDraft(true)
+      setEditingRoutineId(null)
       setRoutinesOpenState(true)
     },
     [startNewRoutine],
   )
 
+  const startEditRoutineDraft = useCallback(
+    (routine: RoutineListItem) => {
+      loadRoutine({
+        ...routine,
+        points: routine.points ?? [],
+        moves: routine.moves ?? [],
+      })
+      setEditingRoutineId(routine.id)
+      setRoutinesOpenState(true)
+    },
+    [loadRoutine],
+  )
+
   const discardDraft = useCallback(() => {
-    resetRoutine()
-    setIsDraft(false)
-  }, [resetRoutine])
+    closeEditor()
+  }, [closeEditor])
 
   const markDraftSaved = useCallback(() => {
-    setIsDraft(false)
+    setEditingRoutineId(null)
   }, [])
 
   const value: RoutineContextValue = {
     ...routineState,
     resetRoutine,
     startNewRoutine,
+    loadRoutine,
     routinesOpen,
-    isDraft,
+    editingRoutineId,
     setRoutinesOpen,
     openRoutines: () => setRoutinesOpenState(true),
     startNewRoutineDraft,
+    startEditRoutineDraft,
     discardDraft,
     markDraftSaved,
   }
