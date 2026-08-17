@@ -1,22 +1,23 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
-import {
-  DEFAULT_FOCUS_SIZE,
-  type FocusRegionSize,
-} from '../types/focusRegion'
+import { createContext, useContext, type ReactNode } from 'react'
+import type { FocusRegionSize } from '../types/focusRegion'
+import { useRegistryContext } from './RegistryContext'
 
 interface FocusRegionContextValue {
   focusSize: FocusRegionSize
   setFocusSize: (size: FocusRegionSize) => void
+  selectedMinimapProfileId: string | null
 }
 
 const FocusRegionContext = createContext<FocusRegionContextValue | null>(null)
 
 export function FocusRegionProvider({ children }: { children: ReactNode }) {
-  const [focusSize, setFocusSize] =
-    useState<FocusRegionSize>(DEFAULT_FOCUS_SIZE)
+  const { focusSize, setFocusSize, selectedMinimapProfileId } =
+    useRegistryContext()
 
   return (
-    <FocusRegionContext.Provider value={{ focusSize, setFocusSize }}>
+    <FocusRegionContext.Provider
+      value={{ focusSize, setFocusSize, selectedMinimapProfileId }}
+    >
       {children}
     </FocusRegionContext.Provider>
   )

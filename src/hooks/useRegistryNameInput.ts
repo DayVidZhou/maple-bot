@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { defaultRegistryName } from '../types/registry'
 
 export function useRegistryNameInput(
-  type: 'routine' | 'hotkey',
+  type: 'routine' | 'hotkey' | 'minimap',
   listLength: number,
 ) {
   const [name, setName] = useState(() => defaultRegistryName(type, listLength))

@@ -42,10 +42,20 @@ export function useFocusRegionCrop(
   focusSize: FocusRegionSize,
   points: RoutinePoint[] = [],
   selectedPointId: string | null = null,
+  onFrame?: (frame: {
+    user: User
+    cropWidth: number
+    cropHeight: number
+  }) => void,
 ) {
   const animationRef = useRef<number>(0)
   const lastUserRef = useRef<User>(USER_NOT_FOUND)
+  const onFrameRef = useRef(onFrame)
   const [user, setUser] = useState<User>(USER_NOT_FOUND)
+
+  useEffect(() => {
+    onFrameRef.current = onFrame
+  }, [onFrame])
 
   useEffect(() => {
     if (!isActive) {
@@ -105,6 +115,12 @@ export function useFocusRegionCrop(
       }
 
       drawRoutinePoints(ctx, canvas, points, selectedPointId)
+
+      onFrameRef.current?.({
+        user: detectedUser,
+        cropWidth,
+        cropHeight,
+      })
 
       if (!usersEqual(detectedUser, lastUserRef.current)) {
         lastUserRef.current = detectedUser

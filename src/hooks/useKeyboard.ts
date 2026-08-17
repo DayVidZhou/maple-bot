@@ -1,49 +1,94 @@
 import { useCallback, useState } from 'react'
+import { useActivityLogOptional } from '../context/ActivityLogContext'
+
+async function withKeyboard<T>(
+  action: (api: NonNullable<Window['electronAPI']>) => Promise<T>,
+  setError: (message: string | null) => void,
+  setIsSending: (value: boolean) => void,
+): Promise<T | undefined> {
+  if (!window.electronAPI) {
+    setError('Keyboard control requires the Electron app')
+    return undefined
+  }
+
+  setError(null)
+  setIsSending(true)
+
+  try {
+    return await action(window.electronAPI)
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : 'Failed to send keyboard input'
+    setError(message)
+    return undefined
+  } finally {
+    setIsSending(false)
+  }
+}
 
 export function useKeyboard() {
   const [error, setError] = useState<string | null>(null)
   const [isSending, setIsSending] = useState(false)
+  const activityLog = useActivityLogOptional()
 
   const isAvailable = typeof window.electronAPI !== 'undefined'
 
-  const tapKey = useCallback(async (key: string) => {
-    if (!window.electronAPI) {
-      setError('Keyboard control requires the Electron app')
-      return
-    }
+  const tapKey = useCallback(
+    async (key: string) => {
+      const result = await withKeyboard(
+        (api) => api.tapKey(key),
+        setError,
+        setIsSending,
+      )
+      if (result !== undefined) {
+        activityLog?.logKeyboardEvent('tap', key)
+      }
+    },
+    [activityLog],
+  )
 
-    setError(null)
-    setIsSending(true)
+  const pressKey = useCallback(
+    async (key: string) => {
+      if (!window.electronAPI) {
+        setError('Keyboard control requires the Electron app')
+        return
+      }
 
-    try {
-      await window.electronAPI.tapKey(key)
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to send key press'
-      setError(message)
-    } finally {
-      setIsSending(false)
-    }
-  }, [])
+      setError(null)
+      try {
+        await window.electronAPI.pressKey(key)
+        activityLog?.logKeyboardEvent('press', key)
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Failed to press key'
+        setError(message)
+      }
+    },
+    [activityLog],
+  )
+
+  const releaseKey = useCallback(
+    async (key: string) => {
+      if (!window.electronAPI) {
+        setError('Keyboard control requires the Electron app')
+        return
+      }
+
+      setError(null)
+      try {
+        await window.electronAPI.releaseKey(key)
+        activityLog?.logKeyboardEvent('release', key)
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Failed to release key'
+        setError(message)
+      }
+    },
+    [activityLog],
+  )
 
   const typeText = useCallback(async (text: string) => {
-    if (!window.electronAPI) {
-      setError('Keyboard control requires the Electron app')
-      return
-    }
-
-    setError(null)
-    setIsSending(true)
-
-    try {
-      await window.electronAPI.typeText(text)
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to type text'
-      setError(message)
-    } finally {
-      setIsSending(false)
-    }
+    await withKeyboard((api) => api.typeText(text), setError, setIsSending)
   }, [])
 
   return {
@@ -51,6 +96,8 @@ export function useKeyboard() {
     isSending,
     error,
     tapKey,
+    pressKey,
+    releaseKey,
     typeText,
   }
 }

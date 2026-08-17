@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
-import type { HotkeyListItem, RoutineListItem } from '../types/registry'
+import type { HotkeyListItem, MinimapProfileListItem, RoutineListItem } from '../types/registry'
 
 interface UseRegistryPersistenceOptions {
   routines: RoutineListItem[]
   hotkeys: HotkeyListItem[]
+  minimapProfiles: MinimapProfileListItem[]
   onLoad: (data: {
     routines: RoutineListItem[]
     hotkeys: HotkeyListItem[]
+    minimapProfiles: MinimapProfileListItem[]
   }) => void
   onSavedAtChange: (savedAt: string | null) => void
 }
@@ -14,6 +16,7 @@ interface UseRegistryPersistenceOptions {
 export function useRegistryPersistence({
   routines,
   hotkeys,
+  minimapProfiles,
   onLoad,
   onSavedAtChange,
 }: UseRegistryPersistenceOptions) {
@@ -27,12 +30,17 @@ export function useRegistryPersistence({
       }
 
       try {
-        const [loadedRoutines, loadedHotkeys] = await Promise.all([
+        const [loadedRoutines, loadedHotkeys, loadedMinimaps] = await Promise.all([
           window.electronAPI.loadRegistryRoutines(),
           window.electronAPI.loadRegistryHotkeys(),
+          window.electronAPI.loadRegistryMinimaps(),
         ])
 
-        onLoad({ routines: loadedRoutines, hotkeys: loadedHotkeys })
+        onLoad({
+          routines: loadedRoutines,
+          hotkeys: loadedHotkeys,
+          minimapProfiles: loadedMinimaps,
+        })
       } catch (error) {
         console.error('Failed to load registry save files:', error)
       } finally {
@@ -64,4 +72,15 @@ export function useRegistryPersistence({
         console.error('Failed to save hotkey list:', error)
       })
   }, [hotkeys, isLoaded, onSavedAtChange])
+
+  useEffect(() => {
+    if (!isLoaded || !window.electronAPI) return
+
+    void window.electronAPI
+      .saveRegistryMinimaps(minimapProfiles)
+      .then((result) => onSavedAtChange(result.savedAt))
+      .catch((error) => {
+        console.error('Failed to save minimap profiles:', error)
+      })
+  }, [minimapProfiles, isLoaded, onSavedAtChange])
 }

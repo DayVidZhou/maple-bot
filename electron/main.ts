@@ -4,9 +4,10 @@ import { fileURLToPath } from 'node:url'
 import {
   focusApplication,
   getOpenApplicationNames,
+  isApplicationFocused,
   MAPLESTORY_WORLDS_APP_NAME,
 } from './apps'
-import { tapKey, typeText } from './keyboard'
+import { pressKey, releaseKey, tapKey, typeText } from './keyboard'
 import { createRegistrySaveHandlers } from './registrySave'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -63,6 +64,12 @@ function registerIpcHandlers() {
     registrySave.saveHotkeys(items),
   )
 
+  ipcMain.handle('registry:load-minimaps', () => registrySave.loadMinimaps())
+
+  ipcMain.handle('registry:save-minimaps', (_event, items) =>
+    registrySave.saveMinimaps(items),
+  )
+
   ipcMain.handle('apps:list', async () => {
     const names = await getOpenApplicationNames()
     console.log('Open applications:')
@@ -78,6 +85,18 @@ function registerIpcHandlers() {
 
   ipcMain.handle('apps:focus-maplestory', async () => {
     await focusApplication(MAPLESTORY_WORLDS_APP_NAME)
+  })
+
+  ipcMain.handle('apps:is-maplestory-focused', async () => {
+    return isApplicationFocused(MAPLESTORY_WORLDS_APP_NAME)
+  })
+
+  ipcMain.handle('keyboard:press', async (_event, key: string) => {
+    await pressKey(key)
+  })
+
+  ipcMain.handle('keyboard:release', async (_event, key: string) => {
+    await releaseKey(key)
   })
 
   ipcMain.handle('keyboard:tap', async (_event, key: string) => {

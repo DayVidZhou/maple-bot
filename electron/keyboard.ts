@@ -83,9 +83,17 @@ function resolveKey(key: string): Key {
   return resolved
 }
 
-export async function tapKey(key: string): Promise<void> {
+export async function pressKey(key: string): Promise<void> {
   await keyboard.pressKey(resolveKey(key))
+}
+
+export async function releaseKey(key: string): Promise<void> {
   await keyboard.releaseKey(resolveKey(key))
+}
+
+export async function tapKey(key: string): Promise<void> {
+  await pressKey(key)
+  await releaseKey(key)
 }
 
 export async function typeText(text: string): Promise<void> {

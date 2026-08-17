@@ -103,6 +103,10 @@
   min-height: 520px;
 }
 
+.run-routine-bar {
+  width: 100%;
+}
+
 @media (max-width: 900px) {
   .main,
   .main.dashboard {

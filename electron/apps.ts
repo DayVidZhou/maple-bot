@@ -37,3 +37,22 @@ export async function focusApplication(name: string): Promise<void> {
     `tell application "${escapedName}" to activate`,
   ])
 }
+
+export async function getFrontmostApplicationName(): Promise<string | null> {
+  if (process.platform !== 'darwin') {
+    return null
+  }
+
+  const { stdout } = await execFileAsync('osascript', [
+    '-e',
+    'tell application "System Events" to get name of first application process whose frontmost is true',
+  ])
+
+  const name = stdout.trim()
+  return name || null
+}
+
+export async function isApplicationFocused(name: string): Promise<boolean> {
+  const frontmost = await getFrontmostApplicationName()
+  return frontmost === name
+}

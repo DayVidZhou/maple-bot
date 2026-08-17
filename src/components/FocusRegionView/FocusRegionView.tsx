@@ -3,6 +3,7 @@ import { useFocusRegionContext } from '../../context/FocusRegionContext'
 import { useRoutineContext } from '../../context/RoutineContext'
 import { useScreenCaptureContext } from '../../context/ScreenCaptureContext'
 import type { Coordinates } from '../../types/coordinates'
+import type { RoutinePoint } from '../../types/routine'
 import type { User } from '../../types/user'
 import { formatUserLocation } from '../../types/user'
 import { useFocusRegionCrop } from '../../hooks/useFocusRegionCrop'
@@ -15,8 +16,15 @@ import './FocusRegionView.css'
 interface FocusRegionViewProps {
   onCanvasClick?: (coord: Coordinates) => void
   onUserChange?: (user: User) => void
+  onUserFrame?: (frame: {
+    user: User
+    cropWidth: number
+    cropHeight: number
+  }) => void
   onPointMove?: (pointId: string, coord: Coordinates) => void
   onPointSelect?: (pointId: string) => void
+  displayPoints?: RoutinePoint[]
+  highlightPointId?: string | null
   clickable?: boolean
   draggablePoints?: boolean
   className?: string
@@ -26,8 +34,11 @@ interface FocusRegionViewProps {
 export function FocusRegionView({
   onCanvasClick,
   onUserChange,
+  onUserFrame,
   onPointMove,
   onPointSelect,
+  displayPoints,
+  highlightPointId,
   clickable = false,
   draggablePoints = false,
   className = '',
@@ -38,13 +49,17 @@ export function FocusRegionView({
   const { routine, selectedPointId } = useRoutineContext()
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
+  const points = displayPoints ?? routine.points
+  const activePointId = highlightPointId ?? selectedPointId
+
   const { user } = useFocusRegionCrop(
     videoRef,
     canvasRef,
     isCapturing,
     focusSize,
-    routine.points,
-    selectedPointId,
+    points,
+    activePointId,
+    onUserFrame,
   )
 
   const {
@@ -55,7 +70,7 @@ export function FocusRegionView({
     shouldSuppressClick,
   } = useRoutinePointDrag({
     canvasRef,
-    points: routine.points,
+    points,
     enabled: draggablePoints && isCapturing,
     onPointMove,
     onPointSelect,
@@ -98,7 +113,7 @@ export function FocusRegionView({
           </div>
         )}
       </div>
-      <FocusRegionMeta user={user} pointCount={routine.points.length} />
+      <FocusRegionMeta user={user} pointCount={points.length} />
     </div>
   )
 }

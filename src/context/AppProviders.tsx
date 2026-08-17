@@ -1,23 +1,29 @@
 import type { ReactNode } from 'react'
+import { ActivityLogProvider } from './ActivityLogContext'
 import { ElectronAppsProvider } from './ElectronAppsContext'
 import { FocusRegionProvider } from './FocusRegionContext'
 import { RegistryProvider } from './RegistryContext'
 import { HotkeyProvider } from './HotkeyContext'
 import { RoutineProvider } from './RoutineContext'
+import { RunRoutineProvider } from './RunRoutineContext'
 import { ScreenCaptureProvider } from './ScreenCaptureContext'
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <ScreenCaptureProvider>
-      <FocusRegionProvider>
-        <ElectronAppsProvider>
-          <RegistryProvider>
-            <HotkeyProvider>
-              <RoutineProvider>{children}</RoutineProvider>
-            </HotkeyProvider>
-          </RegistryProvider>
-        </ElectronAppsProvider>
-      </FocusRegionProvider>
+      <ElectronAppsProvider>
+        <RegistryProvider>
+          <FocusRegionProvider>
+            <ActivityLogProvider>
+              <HotkeyProvider>
+                <RoutineProvider>
+                  <RunRoutineProvider>{children}</RunRoutineProvider>
+                </RoutineProvider>
+              </HotkeyProvider>
+            </ActivityLogProvider>
+          </FocusRegionProvider>
+        </RegistryProvider>
+      </ElectronAppsProvider>
     </ScreenCaptureProvider>
   )
 }

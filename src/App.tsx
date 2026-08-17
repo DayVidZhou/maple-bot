@@ -2,6 +2,7 @@ import { ErrorBanner } from './components/ErrorBanner/ErrorBanner'
 import { FocusRegionPanel } from './components/FocusRegionPanel/FocusRegionPanel'
 import { Header } from './components/Header/Header'
 import { RegistrySidebar } from './components/RegistrySidebar/RegistrySidebar'
+import { RunRoutineBar } from './components/RunRoutineBar/RunRoutineBar'
 import { RoutinesDialog } from './components/RoutinesDialog/RoutinesDialog'
 import { HotkeysDialog } from './components/HotkeysDialog/HotkeysDialog'
 import { ScreenMirrorDialog } from './components/ScreenMirrorDialog/ScreenMirrorDialog'
@@ -26,6 +27,8 @@ function App() {
         <FocusRegionPanel />
         <RegistrySidebar />
       </main>
+
+      <RunRoutineBar />
 
       <StatusBar />
 

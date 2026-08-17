@@ -1,0 +1,49 @@
+.run-routine-bar {
+  width: 100%;
+  gap: 0.85rem;
+}
+
+.run-routine-bar-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.run-routine-bar-copy h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  color: #fff;
+}
+
+.run-routine-bar-copy p {
+  margin: 0.25rem 0 0;
+  color: #9aa0a6;
+  font-size: 0.9rem;
+}
+
+.run-routine-bar-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.run-routine-bar-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  font-size: 0.85rem;
+  color: #9aa0a6;
+}
+
+.run-routine-status-active {
+  color: #4ade80;
+}
+
+.run-routine-error {
+  color: #ffb4b0;
+}
+
+.run-routine-hint {
+  color: #6b7280;
+}

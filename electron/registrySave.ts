@@ -2,9 +2,11 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
   HOTKEY_SAVE_FILE,
+  MINIMAP_SAVE_FILE,
   REGISTRY_SAVE_VERSION,
   ROUTINE_SAVE_FILE,
   type HotkeySaveFile,
+  type MinimapSaveFile,
   type RegistrySaveFile,
   type RoutineSaveFile,
 } from '../src/types/registrySave'
@@ -59,6 +61,7 @@ async function writeSaveFile<T extends { id: string; name: string }>(
 export function createRegistrySaveHandlers(appRoot: string) {
   const routinePath = getSavePath(appRoot, ROUTINE_SAVE_FILE)
   const hotkeyPath = getSavePath(appRoot, HOTKEY_SAVE_FILE)
+  const minimapPath = getSavePath(appRoot, MINIMAP_SAVE_FILE)
 
   return {
     loadRoutines: () => readSaveFile<RoutineSaveFile['items'][number]>(routinePath),
@@ -67,9 +70,13 @@ export function createRegistrySaveHandlers(appRoot: string) {
     loadHotkeys: () => readSaveFile<HotkeySaveFile['items'][number]>(hotkeyPath),
     saveHotkeys: (items: HotkeySaveFile['items']) =>
       writeSaveFile(hotkeyPath, items),
+    loadMinimaps: () => readSaveFile<MinimapSaveFile['items'][number]>(minimapPath),
+    saveMinimaps: (items: MinimapSaveFile['items']) =>
+      writeSaveFile(minimapPath, items),
     getSaveFilePaths: () => ({
       routines: routinePath,
       hotkeys: hotkeyPath,
+      minimaps: minimapPath,
     }),
   }
 }

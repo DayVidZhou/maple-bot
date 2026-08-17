@@ -10,8 +10,8 @@ export function RegistrySidebar() {
   return (
     <aside className="registry-sidebar panel">
       <p className="registry-save-info">
-        Saved locally to{' '}
-        <code>{routineSaveFile}</code> and <code>{hotkeySaveFile}</code>
+        Saved locally to <code>{routineSaveFile}</code> and{' '}
+        <code>{hotkeySaveFile}</code>
         {lastSavedAt && (
           <>
             {' '}
