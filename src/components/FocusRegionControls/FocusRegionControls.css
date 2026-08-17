@@ -27,7 +27,7 @@
   border-color: #4f8cff;
 }
 
-.yellow-shape-coords {
+.user-coords {
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
@@ -36,12 +36,12 @@
   min-width: 8rem;
 }
 
-.yellow-shape-label {
-  color: #22c55e;
+.user-coords-label {
+  color: #ef4444;
   font-weight: 500;
 }
 
-.yellow-shape-empty {
+.user-coords-empty {
   color: #6b7280;
   font-style: italic;
 }

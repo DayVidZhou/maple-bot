@@ -24,19 +24,27 @@ export function hotkeyActionKey(hotkeyId: string, actionId: string): string {
 }
 
 export function formatHotkeyActionOptionLabel(
-  hotkeyName: string,
   action: HotkeyActionEntry,
+  options?: { hotkeyName?: string; includeProfileName?: boolean },
 ): string {
   const keyLabel = action.buttonKey ? ` (${action.buttonKey})` : ''
-  return `${hotkeyName} · ${action.name}${keyLabel}`
+  if (options?.includeProfileName && options.hotkeyName) {
+    return `${options.hotkeyName} · ${action.name}${keyLabel}`
+  }
+  return `${action.name}${keyLabel}`
 }
 
 export function buildHotkeyMoveOptions(
   hotkeys: HotkeyListItem[],
+  profileId?: string | null,
 ): HotkeyMoveOption[] {
+  const scopedHotkeys = profileId
+    ? hotkeys.filter((hotkey) => hotkey.id === profileId)
+    : hotkeys
+  const includeProfileName = !profileId
   const options: HotkeyMoveOption[] = []
 
-  for (const hotkey of hotkeys) {
+  for (const hotkey of scopedHotkeys) {
     for (const action of hotkey.moves) {
       options.push({
         key: hotkeyActionKey(hotkey.id, action.id),
@@ -44,7 +52,10 @@ export function buildHotkeyMoveOptions(
         hotkeyName: hotkey.name,
         action,
         category: 'move',
-        label: formatHotkeyActionOptionLabel(hotkey.name, action),
+        label: formatHotkeyActionOptionLabel(action, {
+          hotkeyName: hotkey.name,
+          includeProfileName,
+        }),
       })
     }
 
@@ -55,7 +66,10 @@ export function buildHotkeyMoveOptions(
         hotkeyName: hotkey.name,
         action,
         category: 'buff',
-        label: formatHotkeyActionOptionLabel(hotkey.name, action),
+        label: formatHotkeyActionOptionLabel(action, {
+          hotkeyName: hotkey.name,
+          includeProfileName,
+        }),
       })
     }
 
@@ -66,7 +80,10 @@ export function buildHotkeyMoveOptions(
         hotkeyName: hotkey.name,
         action,
         category: 'attack',
-        label: formatHotkeyActionOptionLabel(hotkey.name, action),
+        label: formatHotkeyActionOptionLabel(action, {
+          hotkeyName: hotkey.name,
+          includeProfileName,
+        }),
       })
     }
   }

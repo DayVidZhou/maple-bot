@@ -4,6 +4,7 @@ import type { Move, RoutinePoint } from './routine'
 export interface RoutineListItem {
   id: string
   name: string
+  hotkeyProfileId?: string | null
   points: RoutinePoint[]
   moves: Move[]
 }

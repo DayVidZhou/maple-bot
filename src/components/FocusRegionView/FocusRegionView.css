@@ -18,6 +18,10 @@
   cursor: crosshair;
 }
 
+.focus-canvas-draggable-points {
+  touch-action: none;
+}
+
 .focus-region-meta {
   display: flex;
   justify-content: space-between;
@@ -26,6 +30,7 @@
   color: #9aa0a6;
 }
 
-.routines-dialog .focus-region-view.focus-container {
-  min-height: 220px;
+.routines-dialog .focus-region-view .focus-container {
+  min-height: 480px;
+  aspect-ratio: auto;
 }

@@ -15,6 +15,7 @@ import {
   type HotkeyListItem,
   type RoutineListItem,
 } from '../types/registry'
+import { defaultPointName, normalizeMove } from '../types/routine'
 import { normalizeHotkeyListItem } from '../types/hotkey'
 
 interface RegistryContextValue {
@@ -55,6 +56,14 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
           ...routine,
           points: routine.points ?? [],
           moves: routine.moves ?? [],
+          hotkeyProfileId: routine.hotkeyProfileId ?? null,
+        })).map((routine) => ({
+          ...routine,
+          points: routine.points.map((point, index) => ({
+            ...point,
+            name: point.name ?? defaultPointName(index),
+          })),
+          moves: routine.moves.map(normalizeMove),
         })),
       )
       setHotkeys(data.hotkeys.map((hotkey) => normalizeHotkeyListItem(hotkey)))
@@ -76,6 +85,7 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
     const item: RoutineListItem = {
       id: createId(),
       name: trimmed,
+      hotkeyProfileId: routine.hotkeyProfileId,
       points: routine.points,
       moves: routine.moves,
     }
@@ -94,6 +104,7 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
             ? {
                 ...item,
                 name: trimmed,
+                hotkeyProfileId: routine.hotkeyProfileId,
                 points: routine.points,
                 moves: routine.moves,
               }

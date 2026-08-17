@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { FocusRegionSize } from '../types/focusRegion'
 import type { RoutinePoint } from '../types/routine'
+import type { User } from '../types/user'
+import { USER_NOT_FOUND } from '../types/user'
+import { detectUser, usersEqual } from '../utils/detectUser'
 import {
-  detectYellowShape,
-  detectionsEqual,
-  type YellowShapeDetection,
-} from '../utils/detectYellowShape'
-import { normalizedToCanvasCoord } from '../utils/focusRegionCoords'
+  normalizedToCanvasCoord,
+  ROUTINE_POINT_HIT_RADIUS,
+} from '../utils/focusRegionCoords'
 
-const POINT_RADIUS = 8
+const POINT_RADIUS = ROUTINE_POINT_HIT_RADIUS
+const POINT_LINE_WIDTH = 4
+const POINT_SELECTED_LINE_WIDTH = 5
 const CHARACTER_CIRCLE_RADIUS_SCALE = 1.45
 const CHARACTER_CIRCLE_LINE_WIDTH = 5
 
@@ -24,10 +27,10 @@ function drawRoutinePoints(
 
     ctx.beginPath()
     ctx.arc(x, y, POINT_RADIUS, 0, Math.PI * 2)
-    ctx.fillStyle = isSelected ? 'rgba(96, 165, 250, 0.35)' : 'rgba(59, 130, 246, 0.25)'
+    ctx.fillStyle = isSelected ? 'rgba(236, 72, 153, 0.35)' : 'rgba(168, 85, 247, 0.3)'
     ctx.fill()
-    ctx.strokeStyle = isSelected ? '#93c5fd' : '#3b82f6'
-    ctx.lineWidth = isSelected ? 3 : 2
+    ctx.strokeStyle = isSelected ? '#ec4899' : '#a855f7'
+    ctx.lineWidth = isSelected ? POINT_SELECTED_LINE_WIDTH : POINT_LINE_WIDTH
     ctx.stroke()
   }
 }
@@ -41,15 +44,13 @@ export function useFocusRegionCrop(
   selectedPointId: string | null = null,
 ) {
   const animationRef = useRef<number>(0)
-  const lastDetectionRef = useRef<YellowShapeDetection | null>(null)
-  const [yellowShape, setYellowShape] = useState<YellowShapeDetection | null>(
-    null,
-  )
+  const lastUserRef = useRef<User>(USER_NOT_FOUND)
+  const [user, setUser] = useState<User>(USER_NOT_FOUND)
 
   useEffect(() => {
     if (!isActive) {
-      setYellowShape(null)
-      lastDetectionRef.current = null
+      setUser(USER_NOT_FOUND)
+      lastUserRef.current = USER_NOT_FOUND
     }
   }, [isActive])
 
@@ -84,12 +85,18 @@ export function useFocusRegionCrop(
       ctx.drawImage(video, 0, 0, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight)
 
       const imageData = ctx.getImageData(0, 0, cropWidth, cropHeight)
-      const detection = detectYellowShape(imageData)
+      const detectedUser = detectUser(imageData)
 
-      if (detection) {
-        const circleRadius = detection.radius * CHARACTER_CIRCLE_RADIUS_SCALE
+      if (detectedUser.isUserFound && detectedUser.radius != null) {
+        const circleRadius = detectedUser.radius * CHARACTER_CIRCLE_RADIUS_SCALE
         ctx.beginPath()
-        ctx.arc(detection.x, detection.y, circleRadius, 0, Math.PI * 2)
+        ctx.arc(
+          detectedUser.location.x,
+          detectedUser.location.y,
+          circleRadius,
+          0,
+          Math.PI * 2,
+        )
         ctx.fillStyle = 'rgba(239, 68, 68, 0.25)'
         ctx.fill()
         ctx.strokeStyle = '#ef4444'
@@ -99,9 +106,9 @@ export function useFocusRegionCrop(
 
       drawRoutinePoints(ctx, canvas, points, selectedPointId)
 
-      if (!detectionsEqual(detection, lastDetectionRef.current)) {
-        lastDetectionRef.current = detection
-        setYellowShape(detection)
+      if (!usersEqual(detectedUser, lastUserRef.current)) {
+        lastUserRef.current = detectedUser
+        setUser(detectedUser)
       }
 
       animationRef.current = requestAnimationFrame(drawFocusRegion)
@@ -122,5 +129,5 @@ export function useFocusRegionCrop(
     selectedPointId,
   ])
 
-  return { yellowShape }
+  return { user }
 }

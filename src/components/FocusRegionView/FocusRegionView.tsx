@@ -1,34 +1,44 @@
-import { useRef, useEffect, type MouseEvent } from 'react'
+import { useEffect, useRef } from 'react'
 import { useFocusRegionContext } from '../../context/FocusRegionContext'
 import { useRoutineContext } from '../../context/RoutineContext'
 import { useScreenCaptureContext } from '../../context/ScreenCaptureContext'
-import type { NormalizedCoord } from '../../types/routine'
+import type { Coordinates } from '../../types/coordinates'
+import type { User } from '../../types/user'
+import { formatUserLocation } from '../../types/user'
 import { useFocusRegionCrop } from '../../hooks/useFocusRegionCrop'
-import { displayToNormalizedCoord } from '../../utils/focusRegionCoords'
-import type { YellowShapeDetection } from '../../utils/detectYellowShape'
+import {
+  createCanvasClickHandler,
+  useRoutinePointDrag,
+} from '../../hooks/useRoutinePointDrag'
 import './FocusRegionView.css'
 
 interface FocusRegionViewProps {
-  onCanvasClick?: (coord: NormalizedCoord) => void
-  onYellowShapeChange?: (shape: YellowShapeDetection | null) => void
+  onCanvasClick?: (coord: Coordinates) => void
+  onUserChange?: (user: User) => void
+  onPointMove?: (pointId: string, coord: Coordinates) => void
+  onPointSelect?: (pointId: string) => void
   clickable?: boolean
+  draggablePoints?: boolean
   className?: string
   emptyMessage?: string
 }
 
 export function FocusRegionView({
   onCanvasClick,
-  onYellowShapeChange,
+  onUserChange,
+  onPointMove,
+  onPointSelect,
   clickable = false,
+  draggablePoints = false,
   className = '',
-  emptyMessage = 'Focus region appears here during capture',
+  emptyMessage = 'Mini map appears here during capture',
 }: FocusRegionViewProps) {
   const { isCapturing, videoRef } = useScreenCaptureContext()
   const { focusSize } = useFocusRegionContext()
   const { routine, selectedPointId } = useRoutineContext()
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
-  const { yellowShape } = useFocusRegionCrop(
+  const { user } = useFocusRegionCrop(
     videoRef,
     canvasRef,
     isCapturing,
@@ -37,20 +47,37 @@ export function FocusRegionView({
     selectedPointId,
   )
 
+  const {
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handlePointerCancel,
+    shouldSuppressClick,
+  } = useRoutinePointDrag({
+    canvasRef,
+    points: routine.points,
+    enabled: draggablePoints && isCapturing,
+    onPointMove,
+    onPointSelect,
+  })
+
   useEffect(() => {
-    onYellowShapeChange?.(yellowShape)
-  }, [yellowShape, onYellowShapeChange])
+    onUserChange?.(user)
+  }, [user, onUserChange])
 
-  const handleClick = (event: MouseEvent<HTMLCanvasElement>) => {
-    if (!clickable || !onCanvasClick || !canvasRef.current) return
+  const handleClick = createCanvasClickHandler(
+    canvasRef,
+    clickable ? onCanvasClick : undefined,
+    shouldSuppressClick,
+  )
 
-    const coord = displayToNormalizedCoord(
-      canvasRef.current,
-      event.clientX,
-      event.clientY,
-    )
-    if (coord) onCanvasClick(coord)
-  }
+  const canvasClassName = [
+    'focus-canvas',
+    clickable ? 'focus-canvas-clickable' : '',
+    draggablePoints ? 'focus-canvas-draggable-points' : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <div className={`focus-region-view ${className}`.trim()}>
@@ -58,8 +85,12 @@ export function FocusRegionView({
         {isCapturing ? (
           <canvas
             ref={canvasRef}
-            className={`focus-canvas ${clickable ? 'focus-canvas-clickable' : ''}`}
+            className={canvasClassName}
             onClick={handleClick}
+            onPointerDown={draggablePoints ? handlePointerDown : undefined}
+            onPointerMove={draggablePoints ? handlePointerMove : undefined}
+            onPointerUp={draggablePoints ? handlePointerUp : undefined}
+            onPointerCancel={draggablePoints ? handlePointerCancel : undefined}
           />
         ) : (
           <div className="placeholder focus-placeholder">
@@ -67,28 +98,21 @@ export function FocusRegionView({
           </div>
         )}
       </div>
-      <FocusRegionMeta
-        yellowShape={yellowShape}
-        pointCount={routine.points.length}
-      />
+      <FocusRegionMeta user={user} pointCount={routine.points.length} />
     </div>
   )
 }
 
 function FocusRegionMeta({
-  yellowShape,
+  user,
   pointCount,
 }: {
-  yellowShape: YellowShapeDetection | null
+  user: User
   pointCount: number
 }) {
   return (
     <div className="focus-region-meta">
-      {yellowShape && (
-        <span>
-          Yellow: x {yellowShape.x}, y {yellowShape.y}
-        </span>
-      )}
+      <span>User: {formatUserLocation(user)}</span>
       <span>{pointCount} routine point{pointCount === 1 ? '' : 's'}</span>
     </div>
   )

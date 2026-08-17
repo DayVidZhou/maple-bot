@@ -6,7 +6,7 @@ export function Header() {
       <div>
         <h1>Maple Bot</h1>
         <p className="subtitle">
-          Screen mirror with top-left focus region for routine automation
+          Screen mirror with mini map region for routine automation
         </p>
       </div>
       <CaptureControls />

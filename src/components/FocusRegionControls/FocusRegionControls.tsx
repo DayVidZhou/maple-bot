@@ -1,10 +1,11 @@
 import { FOCUS_SIZE_LIMITS, type FocusRegionSize } from '../../types/focusRegion'
-import type { YellowShapeDetection } from '../../utils/detectYellowShape'
+import type { User } from '../../types/user'
+import { formatUserLocation } from '../../types/user'
 import './FocusRegionControls.css'
 
 interface FocusRegionControlsProps {
   focusSize: FocusRegionSize
-  yellowShape: YellowShapeDetection | null
+  user: User
   onChange: (size: FocusRegionSize) => void
 }
 
@@ -14,7 +15,7 @@ function clamp(value: number): number {
 
 export function FocusRegionControls({
   focusSize,
-  yellowShape,
+  user,
   onChange,
 }: FocusRegionControlsProps) {
   const handleWidthChange = (value: string) => {
@@ -51,17 +52,11 @@ export function FocusRegionControls({
           onChange={(e) => handleHeightChange(e.target.value)}
         />
       </label>
-      <div className="yellow-shape-coords">
-        {yellowShape ? (
-          <>
-            <span className="yellow-shape-label">Yellow shape</span>
-            <span>
-              x: {yellowShape.x}, y: {yellowShape.y}
-            </span>
-          </>
-        ) : (
-          <span className="yellow-shape-empty">Yellow shape not detected</span>
-        )}
+      <div className="user-coords">
+        <span className="user-coords-label">User</span>
+        <span className={user.isUserFound ? undefined : 'user-coords-empty'}>
+          {formatUserLocation(user)}
+        </span>
       </div>
     </div>
   )

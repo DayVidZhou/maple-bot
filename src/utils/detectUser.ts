@@ -1,14 +1,6 @@
-export interface YellowShapeDetection {
-  x: number
-  y: number
-  radius: number
-  pixelCount: number
-}
-
-interface Point {
-  x: number
-  y: number
-}
+import type { Coordinates } from '../types/coordinates'
+import type { User } from '../types/user'
+import { USER_NOT_FOUND } from '../types/user'
 
 // Calibrated from the MapleStory Worlds player marker reference image.
 // 9x9 cross/diamond shape — each cell is one pixel in the reference grid.
@@ -69,9 +61,9 @@ function findClusters(
   width: number,
   height: number,
   isYellow: boolean[],
-): Point[][] {
+): Coordinates[][] {
   const visited = new Array(width * height).fill(false)
-  const clusters: Point[][] = []
+  const clusters: Coordinates[][] = []
   const index = (x: number, y: number) => y * width + x
 
   for (let y = 0; y < height; y++) {
@@ -79,8 +71,8 @@ function findClusters(
       const i = index(x, y)
       if (visited[i] || !isYellow[i]) continue
 
-      const cluster: Point[] = []
-      const stack: Point[] = [{ x, y }]
+      const cluster: Coordinates[] = []
+      const stack: Coordinates[] = [{ x, y }]
 
       while (stack.length > 0) {
         const point = stack.pop()
@@ -117,7 +109,7 @@ function findClusters(
   return clusters
 }
 
-function clusterBounds(cluster: Point[]) {
+function clusterBounds(cluster: Coordinates[]) {
   let minX = Infinity
   let maxX = -Infinity
   let minY = Infinity
@@ -133,7 +125,7 @@ function clusterBounds(cluster: Point[]) {
   return { minX, maxX, minY, maxY }
 }
 
-function clusterCentroid(cluster: Point[]): Point {
+function clusterCentroid(cluster: Coordinates[]): Coordinates {
   const total = cluster.reduce(
     (acc, point) => ({
       x: acc.x + point.x,
@@ -148,7 +140,7 @@ function clusterCentroid(cluster: Point[]): Point {
   }
 }
 
-function clusterRadius(cluster: Point[], center: Point): number {
+function clusterRadius(cluster: Coordinates[], center: Coordinates): number {
   let maxDistance = 0
 
   for (const point of cluster) {
@@ -159,7 +151,7 @@ function clusterRadius(cluster: Point[], center: Point): number {
   return Math.max(5, maxDistance + 2)
 }
 
-function clusterToTemplateGrid(cluster: Point[]): boolean[][] {
+function clusterToTemplateGrid(cluster: Coordinates[]): boolean[][] {
   const { minX, maxX, minY, maxY } = clusterBounds(cluster)
   const width = maxX - minX + 1
   const height = maxY - minY + 1
@@ -205,7 +197,7 @@ function templateMatchScore(grid: boolean[][]): number {
 }
 
 function clusterScore(
-  cluster: Point[],
+  cluster: Coordinates[],
   width: number,
   data: Uint8ClampedArray,
 ): number {
@@ -239,9 +231,7 @@ function clusterScore(
   )
 }
 
-export function detectYellowShape(
-  imageData: ImageData,
-): YellowShapeDetection | null {
+export function detectUser(imageData: ImageData): User {
   const { width, height, data } = imageData
   const isYellow = new Array(width * height).fill(false)
 
@@ -257,7 +247,7 @@ export function detectYellowShape(
   }
 
   const clusters = findClusters(width, height, isYellow)
-  if (clusters.length === 0) return null
+  if (clusters.length === 0) return USER_NOT_FOUND
 
   const bestCluster = clusters.reduce((best, cluster) =>
     clusterScore(cluster, width, data) > clusterScore(best, width, data)
@@ -265,24 +255,25 @@ export function detectYellowShape(
       : best,
   )
 
-  if (clusterScore(bestCluster, width, data) === -Infinity) return null
+  if (clusterScore(bestCluster, width, data) === -Infinity) return USER_NOT_FOUND
 
   const center = clusterCentroid(bestCluster)
 
   return {
-    x: Math.round(center.x),
-    y: Math.round(center.y),
+    isUserFound: true,
+    location: {
+      x: Math.round(center.x),
+      y: Math.round(center.y),
+    },
     radius: clusterRadius(bestCluster, center),
-    pixelCount: bestCluster.length,
   }
 }
 
-export function detectionsEqual(
-  a: YellowShapeDetection | null,
-  b: YellowShapeDetection | null,
-): boolean {
-  if (a === b) return true
-  if (!a || !b) return false
-
-  return a.x === b.x && a.y === b.y && a.radius === b.radius
+export function usersEqual(a: User, b: User): boolean {
+  return (
+    a.isUserFound === b.isUserFound &&
+    a.location.x === b.location.x &&
+    a.location.y === b.location.y &&
+    (a.radius ?? 0) === (b.radius ?? 0)
+  )
 }

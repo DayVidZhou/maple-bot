@@ -23,6 +23,10 @@
   flex-shrink: 0;
 }
 
-.hotkey-move-select-empty {
-  margin: 0;
+.hotkey-profile-select-input {
+  width: 100%;
+}
+
+.hotkey-profile-select {
+  margin-bottom: 0.15rem;
 }

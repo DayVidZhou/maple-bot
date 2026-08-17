@@ -1,17 +1,55 @@
+import { useEffect } from 'react'
 import type { HotkeyActionEntry } from '../../types/hotkey'
+import { formatButtonKeyLabel, formatKeyPress } from '../../utils/formatKeyPress'
 import './HotkeysDialog.css'
 
 interface ActionEntryFieldsProps {
   entry: HotkeyActionEntry
+  isCapturing: boolean
+  captureDisabled: boolean
   onChange: (patch: Partial<Omit<HotkeyActionEntry, 'id'>>) => void
   onRemove: () => void
+  onStartCapture: () => void
+  onStopCapture: () => void
 }
 
 export function ActionEntryFields({
   entry,
+  isCapturing,
+  captureDisabled,
   onChange,
   onRemove,
+  onStartCapture,
+  onStopCapture,
 }: ActionEntryFieldsProps) {
+  useEffect(() => {
+    if (!isCapturing) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        onStopCapture()
+        return
+      }
+
+      const formatted = formatKeyPress(event)
+      if (!formatted) return
+
+      event.preventDefault()
+      event.stopPropagation()
+      onChange({ buttonKey: formatted })
+      onStopCapture()
+    }
+
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [isCapturing, onChange, onStopCapture])
+
+  const buttonLabel = isCapturing
+    ? 'Press a key…'
+    : formatButtonKeyLabel(entry.buttonKey)
+
   return (
     <div className="hotkey-action-entry">
       <label className="hotkey-action-field">
@@ -22,15 +60,28 @@ export function ActionEntryFields({
           onChange={(event) => onChange({ name: event.target.value })}
         />
       </label>
-      <label className="hotkey-action-field">
+      <div className="hotkey-action-field hotkey-action-field--button">
         <span>Button</span>
-        <input
-          type="text"
-          value={entry.buttonKey}
-          placeholder="e.g. ctrl, space, 1"
-          onChange={(event) => onChange({ buttonKey: event.target.value })}
-        />
-      </label>
+        <div className="hotkey-button-setter">
+          <span
+            className={`hotkey-button-value ${
+              isCapturing ? 'hotkey-button-value--listening' : ''
+            } ${!buttonLabel && !isCapturing ? 'hotkey-button-value--empty' : ''}`}
+          >
+            {buttonLabel}
+          </span>
+          <button
+            type="button"
+            className={`btn btn-secondary hotkey-button-set ${
+              isCapturing ? 'hotkey-button-set--listening' : ''
+            }`}
+            onClick={isCapturing ? onStopCapture : onStartCapture}
+            disabled={captureDisabled}
+          >
+            {isCapturing ? 'Cancel' : 'Set'}
+          </button>
+        </div>
+      </div>
       <label className="hotkey-action-field hotkey-action-field--time">
         <span>Cooldown (s)</span>
         <input

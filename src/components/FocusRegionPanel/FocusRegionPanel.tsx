@@ -1,29 +1,28 @@
 import { useState } from 'react'
 import { useFocusRegionContext } from '../../context/FocusRegionContext'
-import type { YellowShapeDetection } from '../../utils/detectYellowShape'
+import type { User } from '../../types/user'
+import { USER_NOT_FOUND } from '../../types/user'
 import { FocusRegionControls } from '../FocusRegionControls/FocusRegionControls'
 import { FocusRegionView } from '../FocusRegionView/FocusRegionView'
 import '../FocusRegionView/FocusRegionView.css'
 
 export function FocusRegionPanel() {
   const { focusSize, setFocusSize } = useFocusRegionContext()
-  const [yellowShape, setYellowShape] = useState<YellowShapeDetection | null>(
-    null,
-  )
+  const [user, setUser] = useState<User>(USER_NOT_FOUND)
 
   return (
     <section className="panel focus-region-panel">
-      <h2>Top-Left Focus</h2>
+      <h2>Mini Map</h2>
       <p className="panel-description">
-        Live crop of the top-left {focusSize.widthPercent}% ×{' '}
-        {focusSize.heightPercent}% — this region will drive automation routines
+        Live crop of the mini map ({focusSize.widthPercent}% ×{' '}
+        {focusSize.heightPercent}%) — this region will drive automation routines
       </p>
       <FocusRegionControls
         focusSize={focusSize}
-        yellowShape={yellowShape}
+        user={user}
         onChange={setFocusSize}
       />
-      <FocusRegionView onYellowShapeChange={setYellowShape} />
+      <FocusRegionView onUserChange={setUser} />
     </section>
   )
 }

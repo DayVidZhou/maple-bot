@@ -1,17 +1,21 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useFocusRegionContext } from '../../context/FocusRegionContext'
 import { useRegistryContext } from '../../context/RegistryContext'
 import { useRoutineContext } from '../../context/RoutineContext'
 import { toRegistryRoutine } from '../../hooks/useRoutine'
 import { useScreenCaptureContext } from '../../context/ScreenCaptureContext'
 import { formatPointCoord } from '../../types/routine'
-import type { YellowShapeDetection } from '../../utils/detectYellowShape'
+import type { User } from '../../types/user'
+import { USER_NOT_FOUND } from '../../types/user'
 import { FocusRegionView } from '../FocusRegionView/FocusRegionView'
 import {
+  filterMovesForProfile,
   formatRoutineMoveLabel,
   HotkeyMoveSelect,
+  HotkeyProfileSelect,
 } from './HotkeyMoveSelect'
+import { SelectedMoveFields } from './SelectedMoveFields'
 import './RoutinesDialog.css'
 
 export function RoutinesDialog() {
@@ -26,6 +30,7 @@ export function RoutinesDialog() {
     selectedPointId,
     selectedMoveId,
     selectedPoint,
+    selectedMove,
     setSelectedPointId,
     setSelectedMoveId,
     addPoint,
@@ -35,18 +40,30 @@ export function RoutinesDialog() {
     togglePointMove,
     resetRoutine,
     setRoutineName,
+    setSelectedPointName,
+    setHotkeyProfileId,
+    updatePointPosition,
+    updateSelectedMove,
     markDraftSaved,
   } = useRoutineContext()
 
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [yellowShape, setYellowShape] = useState<YellowShapeDetection | null>(
-    null,
+  const [user, setUser] = useState<User>(USER_NOT_FOUND)
+
+  const profileMoves = useMemo(
+    () => filterMovesForProfile(routine.moves, routine.hotkeyProfileId),
+    [routine.moves, routine.hotkeyProfileId],
   )
+
+  useEffect(() => {
+    if (!routinesOpen || routine.hotkeyProfileId || hotkeys.length === 0) return
+    setHotkeyProfileId(hotkeys[0].id)
+  }, [routinesOpen, routine.hotkeyProfileId, hotkeys, setHotkeyProfileId])
 
   const canSave = routine.points.length >= 1
 
   const handleAddPoint = () => {
-    if (yellowShape && videoRef.current) {
+    if (user.isUserFound && videoRef.current) {
       const cropWidth = Math.floor(
         videoRef.current.videoWidth * (focusSize.widthPercent / 100),
       )
@@ -56,8 +73,8 @@ export function RoutinesDialog() {
 
       if (cropWidth > 0 && cropHeight > 0) {
         addPoint({
-          x: yellowShape.x / cropWidth,
-          y: yellowShape.y / cropHeight,
+          x: user.location.x / cropWidth,
+          y: user.location.y / cropHeight,
         })
         return
       }
@@ -102,18 +119,7 @@ export function RoutinesDialog() {
           </div>
 
           <div className="routines-dialog-body">
-            <section className="routines-panel routines-panel-preview">
-              <h3>Top-Left Focus</h3>
-              <FocusRegionView
-                onCanvasClick={addPoint}
-                onYellowShapeChange={setYellowShape}
-                clickable={isCapturing}
-                emptyMessage="Start screen capture to edit routine points"
-              />
-            </section>
-
-            <section className="routines-panel routines-panel-record">
-              <h3>Record</h3>
+            <section className="routines-panel routines-panel-minimap">
               <label className="routines-name-field">
                 <span>Routine name</span>
                 <input
@@ -122,10 +128,30 @@ export function RoutinesDialog() {
                   onChange={(event) => setRoutineName(event.target.value)}
                 />
               </label>
-              <div className="routines-actions">
+              <h3>Mini Map</h3>
+              <FocusRegionView
+                className="routines-minimap-view"
+                onCanvasClick={addPoint}
+                onUserChange={setUser}
+                onPointMove={updatePointPosition}
+                onPointSelect={setSelectedPointId}
+                clickable={isCapturing}
+                draggablePoints={isCapturing}
+                emptyMessage="Start screen capture to edit routine points"
+              />
+              <p className="routines-hint">
+                Click the mini map to place a point, drag existing points to
+                reposition them, or use Add Point to snap to the tracked user
+                marker.
+              </p>
+            </section>
+
+            <section className="routines-panel routines-panel-points">
+              <h3>Points</h3>
+              <div className="routines-point-actions">
                 <button
                   type="button"
-                  className="btn btn-primary routines-action-btn"
+                  className="btn btn-primary"
                   onClick={handleAddPoint}
                   disabled={!isCapturing}
                 >
@@ -133,37 +159,25 @@ export function RoutinesDialog() {
                 </button>
                 <button
                   type="button"
-                  className="btn btn-secondary routines-action-btn"
+                  className="btn btn-secondary"
                   onClick={deleteSelectedPoint}
                   disabled={!selectedPointId}
                 >
                   Delete Point
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary routines-action-btn"
-                  onClick={resetRoutine}
-                >
-                  Reset Routine
-                </button>
               </div>
-              <p className="routines-hint">
-                Click the minimap to place a point, or use Add Point to snap to
-                the tracked yellow marker.
-              </p>
-              {saveError && <p className="routines-save-error">{saveError}</p>}
-              <button
-                type="button"
-                className="btn btn-primary routines-save-btn"
-                onClick={handleSave}
-                disabled={!canSave}
-              >
-                Save {editingRoutineId ? 'Changes' : 'Routine'}
-              </button>
-            </section>
-
-            <section className="routines-panel routines-panel-points">
-              <h3>Points</h3>
+              {selectedPoint && (
+                <label className="routines-name-field">
+                  <span>Point name</span>
+                  <input
+                    type="text"
+                    value={selectedPoint.name}
+                    onChange={(event) =>
+                      setSelectedPointName(event.target.value)
+                    }
+                  />
+                </label>
+              )}
               <ul className="routines-list">
                 {routine.points.length === 0 ? (
                   <li className="routines-list-empty">No points yet</li>
@@ -178,7 +192,10 @@ export function RoutinesDialog() {
                         onClick={() => setSelectedPointId(point.id)}
                       >
                         <span className="routines-list-index">{index + 1}</span>
-                        <span>{formatPointCoord(point.x, point.y)}</span>
+                        <span className="routines-list-label">{point.name}</span>
+                        <span className="routines-list-meta">
+                          {formatPointCoord(point)}
+                        </span>
                         <span className="routines-list-meta">
                           {point.moveIds.length} move
                           {point.moveIds.length === 1 ? '' : 's'}
@@ -192,11 +209,20 @@ export function RoutinesDialog() {
 
             <section className="routines-panel routines-panel-moves">
               <h3>Moves</h3>
+              <HotkeyProfileSelect
+                hotkeys={hotkeys}
+                profileId={routine.hotkeyProfileId}
+                onChange={setHotkeyProfileId}
+              />
               <ul className="routines-list">
-                {routine.moves.length === 0 ? (
-                  <li className="routines-list-empty">No hotkey moves added yet</li>
+                {profileMoves.length === 0 ? (
+                  <li className="routines-list-empty">
+                    {routine.hotkeyProfileId
+                      ? 'No moves added for this profile yet'
+                      : 'Select a hotkey profile to add moves'}
+                  </li>
                 ) : (
-                  routine.moves.map((move) => (
+                  profileMoves.map((move) => (
                     <li key={move.id}>
                       <button
                         type="button"
@@ -205,7 +231,12 @@ export function RoutinesDialog() {
                         }`}
                         onClick={() => setSelectedMoveId(move.id)}
                       >
-                        {formatRoutineMoveLabel(move, hotkeys)}
+                        {formatRoutineMoveLabel(
+                          move,
+                          hotkeys,
+                          routine.hotkeyProfileId,
+                          profileMoves,
+                        )}
                       </button>
                     </li>
                   ))
@@ -214,9 +245,16 @@ export function RoutinesDialog() {
 
               <HotkeyMoveSelect
                 hotkeys={hotkeys}
-                existingMoves={routine.moves}
+                profileId={routine.hotkeyProfileId}
                 onAdd={addMove}
               />
+
+              {selectedMove && (
+                <SelectedMoveFields
+                  move={selectedMove}
+                  onChange={updateSelectedMove}
+                />
+              )}
 
               <button
                 type="button"
@@ -230,11 +268,11 @@ export function RoutinesDialog() {
               {selectedPoint && (
                 <div className="routines-point-moves">
                   <h4>Moves at selected point</h4>
-                  {routine.moves.length === 0 ? (
+                  {profileMoves.length === 0 ? (
                     <p className="routines-hint">Add hotkey moves to assign them.</p>
                   ) : (
                     <ul className="routines-move-checklist">
-                      {routine.moves.map((move) => {
+                      {profileMoves.map((move) => {
                         const checked = selectedPoint.moveIds.includes(move.id)
                         return (
                           <li key={move.id}>
@@ -246,7 +284,14 @@ export function RoutinesDialog() {
                                   togglePointMove(selectedPoint.id, move.id)
                                 }
                               />
-                              <span>{formatRoutineMoveLabel(move, hotkeys)}</span>
+                              <span>
+                                {formatRoutineMoveLabel(
+                                  move,
+                                  hotkeys,
+                                  routine.hotkeyProfileId,
+                                  profileMoves,
+                                )}
+                              </span>
                             </label>
                           </li>
                         )
@@ -256,6 +301,27 @@ export function RoutinesDialog() {
                 </div>
               )}
             </section>
+          </div>
+
+          <div className="routines-dialog-footer">
+            {saveError && <p className="routines-save-error">{saveError}</p>}
+            <div className="routines-dialog-footer-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={resetRoutine}
+              >
+                Reset Routine
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary routines-save-btn"
+                onClick={handleSave}
+                disabled={!canSave}
+              >
+                Save {editingRoutineId ? 'Changes' : 'Routine'}
+              </button>
+            </div>
           </div>
         </Dialog.Content>
       </Dialog.Portal>
