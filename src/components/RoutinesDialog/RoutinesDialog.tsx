@@ -5,12 +5,15 @@ import { useRegistryContext } from '../../context/RegistryContext'
 import { useRoutineContext } from '../../context/RoutineContext'
 import { toRegistryRoutine } from '../../hooks/useRoutine'
 import { useScreenCaptureContext } from '../../context/ScreenCaptureContext'
-import { formatPointCoord } from '../../types/routine'
+import {
+  formatRoutinePointCoord,
+  getMinimapCropSize,
+  type MinimapCropSize,
+} from '../../utils/userCoords'
 import type { User } from '../../types/user'
 import { USER_NOT_FOUND } from '../../types/user'
 import { FocusRegionView } from '../FocusRegionView/FocusRegionView'
 import {
-  filterMovesForProfile,
   formatRoutineMoveLabel,
   HotkeyMoveSelect,
   HotkeyProfileSelect,
@@ -37,7 +40,6 @@ export function RoutinesDialog() {
     deleteSelectedPoint,
     addMove,
     deleteSelectedMove,
-    togglePointMove,
     resetRoutine,
     setRoutineName,
     setSelectedPointName,
@@ -49,10 +51,11 @@ export function RoutinesDialog() {
 
   const [saveError, setSaveError] = useState<string | null>(null)
   const [user, setUser] = useState<User>(USER_NOT_FOUND)
+  const [cropSize, setCropSize] = useState<MinimapCropSize | null>(null)
 
-  const profileMoves = useMemo(
-    () => filterMovesForProfile(routine.moves, routine.hotkeyProfileId),
-    [routine.moves, routine.hotkeyProfileId],
+  const pointMoves = useMemo(
+    () => selectedPoint?.moves ?? [],
+    [selectedPoint],
   )
 
   useEffect(() => {
@@ -62,22 +65,33 @@ export function RoutinesDialog() {
 
   const canSave = routine.points.length >= 1
 
-  const handleAddPoint = () => {
-    if (user.isUserFound && videoRef.current) {
-      const cropWidth = Math.floor(
-        videoRef.current.videoWidth * (focusSize.widthPercent / 100),
-      )
-      const cropHeight = Math.floor(
-        videoRef.current.videoHeight * (focusSize.heightPercent / 100),
-      )
+  const formatPointLabel = (point: { x: number; y: number; moves: unknown[] }) =>
+    formatRoutinePointCoord(point, cropSize)
 
-      if (cropWidth > 0 && cropHeight > 0) {
-        addPoint({
-          x: user.location.x / cropWidth,
-          y: user.location.y / cropHeight,
-        })
-        return
-      }
+  const handleAddPoint = () => {
+    if (user.isUserFound && cropSize) {
+      addPoint({
+        x: user.location.x / cropSize.width,
+        y: user.location.y / cropSize.height,
+      })
+      return
+    }
+
+    const video = videoRef.current
+    const fallbackCrop = video
+      ? getMinimapCropSize(
+          video.videoWidth,
+          video.videoHeight,
+          focusSize,
+        )
+      : null
+
+    if (user.isUserFound && fallbackCrop) {
+      addPoint({
+        x: user.location.x / fallbackCrop.width,
+        y: user.location.y / fallbackCrop.height,
+      })
+      return
     }
 
     addPoint({ x: 0.5, y: 0.5 })
@@ -133,6 +147,13 @@ export function RoutinesDialog() {
                 className="routines-minimap-view"
                 onCanvasClick={addPoint}
                 onUserChange={setUser}
+                onUserFrame={({ cropWidth, cropHeight }) => {
+                  setCropSize(
+                    cropWidth > 0 && cropHeight > 0
+                      ? { width: cropWidth, height: cropHeight }
+                      : null,
+                  )
+                }}
                 onPointMove={updatePointPosition}
                 onPointSelect={setSelectedPointId}
                 clickable={isCapturing}
@@ -194,11 +215,11 @@ export function RoutinesDialog() {
                         <span className="routines-list-index">{index + 1}</span>
                         <span className="routines-list-label">{point.name}</span>
                         <span className="routines-list-meta">
-                          {formatPointCoord(point)}
+                          {formatPointLabel(point)}
                         </span>
                         <span className="routines-list-meta">
-                          {point.moveIds.length} move
-                          {point.moveIds.length === 1 ? '' : 's'}
+                          {point.moves.length} move
+                          {point.moves.length === 1 ? '' : 's'}
                         </span>
                       </button>
                     </li>
@@ -209,20 +230,33 @@ export function RoutinesDialog() {
 
             <section className="routines-panel routines-panel-moves">
               <h3>Moves</h3>
+              {selectedPoint ? (
+                <p className="routines-hint routines-moves-point-label">
+                  At <strong>{selectedPoint.name}</strong> — run in list order
+                  after arriving.
+                </p>
+              ) : (
+                <p className="routines-hint routines-moves-point-label">
+                  Select a point to add and edit its moves.
+                </p>
+              )}
               <HotkeyProfileSelect
                 hotkeys={hotkeys}
                 profileId={routine.hotkeyProfileId}
                 onChange={setHotkeyProfileId}
+                disabled={!selectedPointId}
               />
               <ul className="routines-list">
-                {profileMoves.length === 0 ? (
+                {!selectedPoint ? (
+                  <li className="routines-list-empty">Select a point first</li>
+                ) : pointMoves.length === 0 ? (
                   <li className="routines-list-empty">
                     {routine.hotkeyProfileId
-                      ? 'No moves added for this profile yet'
+                      ? 'No moves for this point yet'
                       : 'Select a hotkey profile to add moves'}
                   </li>
                 ) : (
-                  profileMoves.map((move) => (
+                  pointMoves.map((move) => (
                     <li key={move.id}>
                       <button
                         type="button"
@@ -235,7 +269,7 @@ export function RoutinesDialog() {
                           move,
                           hotkeys,
                           routine.hotkeyProfileId,
-                          profileMoves,
+                          pointMoves,
                         )}
                       </button>
                     </li>
@@ -247,11 +281,13 @@ export function RoutinesDialog() {
                 hotkeys={hotkeys}
                 profileId={routine.hotkeyProfileId}
                 onAdd={addMove}
+                disabled={!selectedPointId}
               />
 
               {selectedMove && (
                 <SelectedMoveFields
                   move={selectedMove}
+                  hotkeys={hotkeys}
                   onChange={updateSelectedMove}
                 />
               )}
@@ -264,42 +300,6 @@ export function RoutinesDialog() {
               >
                 Delete Move
               </button>
-
-              {selectedPoint && (
-                <div className="routines-point-moves">
-                  <h4>Moves at selected point</h4>
-                  {profileMoves.length === 0 ? (
-                    <p className="routines-hint">Add hotkey moves to assign them.</p>
-                  ) : (
-                    <ul className="routines-move-checklist">
-                      {profileMoves.map((move) => {
-                        const checked = selectedPoint.moveIds.includes(move.id)
-                        return (
-                          <li key={move.id}>
-                            <label className="routines-move-check">
-                              <input
-                                type="checkbox"
-                                checked={checked}
-                                onChange={() =>
-                                  togglePointMove(selectedPoint.id, move.id)
-                                }
-                              />
-                              <span>
-                                {formatRoutineMoveLabel(
-                                  move,
-                                  hotkeys,
-                                  routine.hotkeyProfileId,
-                                  profileMoves,
-                                )}
-                              </span>
-                            </label>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  )}
-                </div>
-              )}
             </section>
           </div>
 

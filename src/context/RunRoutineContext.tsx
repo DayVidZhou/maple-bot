@@ -19,8 +19,11 @@ import {
   runRoutineLoop,
   type RoutineRunnerKeyboard,
 } from '../utils/routineRunner'
-import { activityLogCoordContextRef } from '../utils/activityLogCoords'
-import { userToNormalized } from '../utils/userCoords'
+import { activityLogCoordContextRef, activityLogPositions, appendCoordDelta } from '../utils/activityLogCoords'
+import {
+  pointToMinimapCoord,
+  userToMinimapCoord,
+} from '../utils/userCoords'
 import { useRegistryContext } from './RegistryContext'
 import { useScreenCaptureContext } from './ScreenCaptureContext'
 
@@ -37,7 +40,9 @@ interface RunRoutineContextValue {
   currentPointIndex: number | null
   selectedRoutine: RoutineListItem | null
   canRun: boolean
+  canLogUserLocation: boolean
   updateUserTracker: (tracker: UserTracker) => void
+  logUserLocation: () => void
   startRun: () => Promise<void>
   stopRun: () => void
 }
@@ -69,9 +74,20 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
 
   const syncActivityLogCoords = useCallback(() => {
     const { user, cropWidth, cropHeight } = trackerRef.current
+    const minimapUser = userToMinimapCoord(user)
+    const minimapPoint =
+      currentPointRef.current && cropWidth > 0 && cropHeight > 0
+        ? pointToMinimapCoord(
+            currentPointRef.current,
+            cropWidth,
+            cropHeight,
+          )
+        : null
+
     activityLogCoordContextRef.current = {
-      user: userToNormalized(user, cropWidth, cropHeight),
-      point: currentPointRef.current,
+      user: minimapUser,
+      point: minimapPoint,
+      pointName: currentPointRef.current?.name,
     }
   }, [])
 
@@ -86,6 +102,35 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
       selectedRoutine &&
       selectedRoutine.points.length > 0,
   )
+
+  const canLogUserLocation = isCapturing
+
+  const logUserLocation = useCallback(() => {
+    const { user, cropWidth, cropHeight } = trackerRef.current
+    const minimapUser = userToMinimapCoord(user)
+    const targetPoint =
+      currentPointRef.current ??
+      (currentPointIndex != null && selectedRoutine
+        ? selectedRoutine.points[currentPointIndex] ?? null
+        : null) ??
+      selectedRoutine?.points[0] ??
+      null
+    const minimapPoint =
+      targetPoint && cropWidth > 0 && cropHeight > 0
+        ? pointToMinimapCoord(targetPoint, cropWidth, cropHeight)
+        : null
+
+    logActivity({
+      category: 'routine',
+      event: 'User location',
+      detail: appendCoordDelta(
+        minimapUser ? 'Manual snapshot' : 'Manual snapshot (user not detected)',
+        minimapUser,
+        minimapPoint,
+      ),
+      ...activityLogPositions(minimapUser, minimapPoint, targetPoint?.name),
+    })
+  }, [currentPointIndex, logActivity, selectedRoutine])
 
   const updateUserTracker = useCallback(
     (tracker: UserTracker) => {
@@ -158,9 +203,8 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
           if (!window.electronAPI) return false
           return window.electronAPI.isMapleStoryWorldsFocused()
         },
-        getUserNormalized: (): Coordinates | null => {
-          const { user, cropWidth, cropHeight } = trackerRef.current
-          return userToNormalized(user, cropWidth, cropHeight)
+        getUserMinimapCoord: (): Coordinates | null => {
+          return userToMinimapCoord(trackerRef.current.user)
         },
         getCropSize: () => {
           const { cropWidth, cropHeight } = trackerRef.current
@@ -224,7 +268,9 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
     currentPointIndex,
     selectedRoutine,
     canRun,
+    canLogUserLocation,
     updateUserTracker,
+    logUserLocation,
     startRun,
     stopRun,
   }

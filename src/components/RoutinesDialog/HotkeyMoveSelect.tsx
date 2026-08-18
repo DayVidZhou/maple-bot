@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { HotkeyListItem } from '../../types/registry'
 import type { Move } from '../../types/routine'
+import { formatMoveDirectionLabel } from '../../types/routine'
 import {
   buildHotkeyMoveOptions,
   findHotkeyMoveOption,
@@ -8,20 +9,31 @@ import {
   MOVE_CATEGORY_LABELS,
 } from '../../utils/hotkeyMoveOptions'
 import type { HotkeyMoveOption } from '../../utils/hotkeyMoveOptions'
+import { resolveMoveButtonKey } from '../../utils/resolveHotkeyAction'
+import {
+  DEFAULT_MOVE_DEFAULTS,
+  type MoveDefaults,
+} from '../../types/routine'
+import { MoveDurationDirectionFields } from './MoveDurationDirectionFields'
 import './HotkeyMoveSelect.css'
 
 interface HotkeyMoveSelectProps {
   hotkeys: HotkeyListItem[]
   profileId: string | null
-  onAdd: (option: HotkeyMoveOption) => void
+  onAdd: (option: HotkeyMoveOption, defaults: MoveDefaults) => void
+  disabled?: boolean
 }
 
 export function HotkeyMoveSelect({
   hotkeys,
   profileId,
   onAdd,
+  disabled = false,
 }: HotkeyMoveSelectProps) {
   const [selectedKey, setSelectedKey] = useState('')
+  const [moveDefaults, setMoveDefaults] = useState<MoveDefaults>(
+    DEFAULT_MOVE_DEFAULTS,
+  )
 
   useEffect(() => {
     setSelectedKey('')
@@ -36,12 +48,25 @@ export function HotkeyMoveSelect({
     [options],
   )
 
+  const resetMoveDefaults = () => {
+    setMoveDefaults(DEFAULT_MOVE_DEFAULTS)
+  }
+
   const handleAdd = () => {
     const option = findHotkeyMoveOption(options, selectedKey)
     if (!option) return
 
-    onAdd(option)
+    onAdd(option, moveDefaults)
     setSelectedKey('')
+    resetMoveDefaults()
+  }
+
+  if (disabled) {
+    return (
+      <p className="routines-hint hotkey-move-select-empty">
+        Select a point before adding moves.
+      </p>
+    )
   }
 
   if (hotkeys.length === 0) {
@@ -69,31 +94,40 @@ export function HotkeyMoveSelect({
   }
 
   return (
-    <div className="hotkey-move-select">
-      <select
-        value={selectedKey}
-        onChange={(event) => setSelectedKey(event.target.value)}
-        className="hotkey-move-select-input"
-      >
-        <option value="">Select move…</option>
-        {groupedOptions.map((group) => (
-          <optgroup key={group.category} label={group.label}>
-            {group.options.map((option) => (
-              <option key={option.key} value={option.key}>
-                {option.label}
-              </option>
-            ))}
-          </optgroup>
-        ))}
-      </select>
-      <button
-        type="button"
-        className="btn btn-primary hotkey-move-select-add"
-        onClick={handleAdd}
-        disabled={!selectedKey}
-      >
-        Add
-      </button>
+    <div className="hotkey-move-select-block">
+      <div className="hotkey-move-select">
+        <select
+          value={selectedKey}
+          onChange={(event) => setSelectedKey(event.target.value)}
+          className="hotkey-move-select-input"
+        >
+          <option value="">Select move…</option>
+          {groupedOptions.map((group) => (
+            <optgroup key={group.category} label={group.label}>
+              {group.options.map((option) => (
+                <option key={option.key} value={option.key}>
+                  {option.label}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="btn btn-primary hotkey-move-select-add"
+          onClick={handleAdd}
+          disabled={!selectedKey}
+        >
+          Add
+        </button>
+      </div>
+      <MoveDurationDirectionFields
+        holdDurationSeconds={moveDefaults.holdDurationSeconds}
+        direction={moveDefaults.direction}
+        onChange={(patch) =>
+          setMoveDefaults((current) => ({ ...current, ...patch }))
+        }
+      />
     </div>
   )
 }
@@ -127,9 +161,11 @@ export function formatRoutineMoveLabel(
   profileMoves?: Move[],
 ): string {
   const baseLabel = buildMoveBaseLabel(move, hotkeys, profileId)
+  const buttonKey = resolveMoveButtonKey(move, hotkeys) ?? 'no key'
+  const directionLabel = formatMoveDirectionLabel(move.direction)
 
   if (!profileMoves) {
-    return `${baseLabel} · ${move.holdDurationSeconds}s · ${move.direction}`
+    return `${baseLabel} · ${buttonKey} · ${move.holdDurationSeconds}s · ${directionLabel}`
   }
 
   const sameActionMoves = profileMoves.filter(
@@ -145,19 +181,21 @@ export function formatRoutineMoveLabel(
       ? ` #${duplicateIndex + 1}`
       : ''
 
-  return `${baseLabel}${duplicateSuffix} · ${move.holdDurationSeconds}s · ${move.direction}`
+  return `${baseLabel}${duplicateSuffix} · ${buttonKey} · ${move.holdDurationSeconds}s · ${directionLabel}`
 }
 
 interface HotkeyProfileSelectProps {
   hotkeys: HotkeyListItem[]
   profileId: string | null
   onChange: (profileId: string | null) => void
+  disabled?: boolean
 }
 
 export function HotkeyProfileSelect({
   hotkeys,
   profileId,
   onChange,
+  disabled = false,
 }: HotkeyProfileSelectProps) {
   if (hotkeys.length === 0) {
     return (
@@ -176,6 +214,7 @@ export function HotkeyProfileSelect({
           onChange(event.target.value ? event.target.value : null)
         }
         className="hotkey-move-select-input hotkey-profile-select-input"
+        disabled={disabled}
       >
         <option value="">Select profile…</option>
         {hotkeys.map((hotkey) => (

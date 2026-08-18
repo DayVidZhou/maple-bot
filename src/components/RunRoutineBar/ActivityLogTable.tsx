@@ -7,21 +7,40 @@ import './ActivityLogTable.css'
 interface ActivityLogTableProps {
   entries: ActivityLogEntry[]
   onClear: () => void
+  onLogUserLocation?: () => void
+  canLogUserLocation?: boolean
 }
 
-export function ActivityLogTable({ entries, onClear }: ActivityLogTableProps) {
+export function ActivityLogTable({
+  entries,
+  onClear,
+  onLogUserLocation,
+  canLogUserLocation = false,
+}: ActivityLogTableProps) {
   return (
     <div className="activity-log">
       <div className="activity-log-header">
         <h3>Activity Log</h3>
-        <button
-          type="button"
-          className="btn btn-secondary activity-log-clear"
-          onClick={onClear}
-          disabled={entries.length === 0}
-        >
-          Clear
-        </button>
+        <div className="activity-log-header-actions">
+          {onLogUserLocation && (
+            <button
+              type="button"
+              className="btn btn-secondary activity-log-log-location"
+              onClick={onLogUserLocation}
+              disabled={!canLogUserLocation}
+            >
+              Log User Location
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-secondary activity-log-clear"
+            onClick={onClear}
+            disabled={entries.length === 0}
+          >
+            Clear
+          </button>
+        </div>
       </div>
 
       <div className="activity-log-table-wrap">
@@ -32,8 +51,8 @@ export function ActivityLogTable({ entries, onClear }: ActivityLogTableProps) {
               <th>Category</th>
               <th>Event</th>
               <th>Key</th>
-              <th>User</th>
-              <th>Point</th>
+              <th>User (live)</th>
+              <th>Target POI</th>
               <th>Details</th>
             </tr>
           </thead>

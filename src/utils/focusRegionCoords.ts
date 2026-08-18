@@ -36,9 +36,17 @@ export function normalizedToCanvasCoord(
   canvas: HTMLCanvasElement,
   coord: Coordinates,
 ): Coordinates {
+  return normalizedToMinimapCoord(coord, canvas.width, canvas.height)
+}
+
+export function normalizedToMinimapCoord(
+  coord: Coordinates,
+  cropWidth: number,
+  cropHeight: number,
+): Coordinates {
   return {
-    x: coord.x * canvas.width,
-    y: coord.y * canvas.height,
+    x: coord.x * cropWidth,
+    y: coord.y * cropHeight,
   }
 }
 

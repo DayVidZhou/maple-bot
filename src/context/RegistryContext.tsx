@@ -23,7 +23,7 @@ import {
   type MinimapProfileListItem,
   type RoutineListItem,
 } from '../types/registry'
-import { defaultPointName, normalizeMove } from '../types/routine'
+import { normalizeRoutineListItem } from '../types/routine'
 import { normalizeHotkeyListItem } from '../types/hotkey'
 import {
   clampFocusRegionSize,
@@ -95,21 +95,7 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
       minimapProfiles: MinimapProfileListItem[]
     }) => {
       setRoutines(
-        data.routines
-          .map((routine) => ({
-            ...routine,
-            points: routine.points ?? [],
-            moves: routine.moves ?? [],
-            hotkeyProfileId: routine.hotkeyProfileId ?? null,
-          }))
-          .map((routine) => ({
-            ...routine,
-            points: routine.points.map((point, index) => ({
-              ...point,
-              name: point.name ?? defaultPointName(index),
-            })),
-            moves: routine.moves.map(normalizeMove),
-          })),
+        data.routines.map((routine) => normalizeRoutineListItem(routine)),
       )
       setHotkeys(data.hotkeys.map((hotkey) => normalizeHotkeyListItem(hotkey)))
 
@@ -162,7 +148,6 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
       name: trimmed,
       hotkeyProfileId: routine.hotkeyProfileId,
       points: routine.points,
-      moves: routine.moves,
     }
     setRoutines((current) => [...current, item])
     setSelectedRoutineId(item.id)
@@ -181,7 +166,6 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
                 name: trimmed,
                 hotkeyProfileId: routine.hotkeyProfileId,
                 points: routine.points,
-                moves: routine.moves,
               }
             : item,
         ),

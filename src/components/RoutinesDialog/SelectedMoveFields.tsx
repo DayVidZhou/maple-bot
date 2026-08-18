@@ -1,41 +1,47 @@
-import type { Move, MoveDirection } from '../../types/routine'
+import type { HotkeyListItem } from '../../types/registry'
+import type { Move } from '../../types/routine'
+import { formatMoveDirectionLabel } from '../../types/routine'
+import { resolveMoveButtonKey } from '../../utils/resolveHotkeyAction'
+import { MoveDurationDirectionFields } from './MoveDurationDirectionFields'
 import './HotkeyMoveSelect.css'
 
 interface SelectedMoveFieldsProps {
   move: Move
+  hotkeys: HotkeyListItem[]
   onChange: (patch: Partial<Omit<Move, 'id'>>) => void
 }
 
-export function SelectedMoveFields({ move, onChange }: SelectedMoveFieldsProps) {
+export function SelectedMoveFields({
+  move,
+  hotkeys,
+  onChange,
+}: SelectedMoveFieldsProps) {
+  const buttonKey = resolveMoveButtonKey(move, hotkeys)
+
   return (
     <div className="routines-selected-move-fields">
       <label className="routines-name-field">
-        <span>Hold duration (s)</span>
+        <span>Key</span>
         <input
-          type="number"
-          min={0}
-          step={0.1}
-          value={move.holdDurationSeconds}
-          onChange={(event) =>
-            onChange({
-              holdDurationSeconds: Number.parseFloat(event.target.value) || 0,
-            })
-          }
+          type="text"
+          readOnly
+          value={buttonKey ?? 'Not configured'}
+          className="routines-move-key-readonly"
         />
       </label>
-      <label className="routines-name-field">
-        <span>Direction</span>
-        <select
-          value={move.direction}
-          onChange={(event) =>
-            onChange({ direction: event.target.value as MoveDirection })
-          }
-          className="hotkey-move-select-input routines-move-direction-select"
-        >
-          <option value="right">Right</option>
-          <option value="left">Left</option>
-        </select>
-      </label>
+      <MoveDurationDirectionFields
+        holdDurationSeconds={move.holdDurationSeconds}
+        direction={move.direction}
+        onChange={onChange}
+      />
+      <p className="routines-hint routines-move-fields-hint">
+        At this point: {buttonKey ? `hold ${buttonKey}` : 'configure key in hotkeys'}{' '}
+        for {move.holdDurationSeconds}s
+        {move.direction
+          ? ` while holding ${formatMoveDirectionLabel(move.direction)}`
+          : ''}
+        .
+      </p>
     </div>
   )
 }

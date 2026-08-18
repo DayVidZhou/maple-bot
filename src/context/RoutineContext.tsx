@@ -60,7 +60,6 @@ export function RoutineProvider({ children }: { children: ReactNode }) {
       loadRoutine({
         ...routine,
         points: routine.points ?? [],
-        moves: routine.moves ?? [],
       })
       setEditingRoutineId(routine.id)
       setRoutinesOpenState(true)

@@ -1,5 +1,17 @@
+.hotkey-move-select-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
 .hotkey-move-select {
   display: flex;
+  gap: 0.5rem;
+}
+
+.routines-move-defaults-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
 }
 

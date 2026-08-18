@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react'
 import type { Coordinates } from '../types/coordinates'
+import type { RoutineListItem } from '../types/registry'
 import {
   createId,
   defaultPointName,
-  DEFAULT_MOVE_HOLD_SECONDS,
-  normalizeMove,
+  normalizeRoutineListItem,
   type Move,
+  type MoveDefaults,
   type Routine,
   type RoutinePoint,
 } from '../types/routine'
@@ -17,19 +18,25 @@ function createEmptyRoutine(): Routine {
     name: 'Untitled Routine',
     hotkeyProfileId: null,
     points: [],
-    moves: [],
   }
 }
 
 export function useRoutine() {
   const [routine, setRoutine] = useState<Routine>(createEmptyRoutine)
-  const [selectedPointId, setSelectedPointId] = useState<string | null>(null)
+  const [selectedPointId, setSelectedPointIdState] = useState<string | null>(
+    null,
+  )
   const [selectedMoveId, setSelectedMoveId] = useState<string | null>(null)
 
   const selectedPoint =
     routine.points.find((point) => point.id === selectedPointId) ?? null
   const selectedMove =
-    routine.moves.find((move) => move.id === selectedMoveId) ?? null
+    selectedPoint?.moves.find((move) => move.id === selectedMoveId) ?? null
+
+  const setSelectedPointId = useCallback((pointId: string | null) => {
+    setSelectedPointIdState(pointId)
+    setSelectedMoveId(null)
+  }, [])
 
   const addPoint = useCallback((coord: Coordinates) => {
     let newPointId: string | undefined
@@ -40,7 +47,7 @@ export function useRoutine() {
         x: coord.x,
         y: coord.y,
         name: defaultPointName(current.points.length),
-        moveIds: [],
+        moves: [],
       }
       newPointId = point.id
 
@@ -50,7 +57,10 @@ export function useRoutine() {
       }
     })
 
-    if (newPointId) setSelectedPointId(newPointId)
+    if (newPointId) {
+      setSelectedPointIdState(newPointId)
+      setSelectedMoveId(null)
+    }
   }, [])
 
   const deleteSelectedPoint = useCallback(() => {
@@ -62,69 +72,64 @@ export function useRoutine() {
         points: current.points.filter((point) => point.id !== selectedPointId),
       }
     })
-    setSelectedPointId(null)
+    setSelectedPointIdState(null)
+    setSelectedMoveId(null)
   }, [selectedPointId])
 
-  const addMove = useCallback((option: HotkeyMoveOption) => {
-    let newMoveId: string | undefined
+  const addMove = useCallback(
+    (option: HotkeyMoveOption, defaults: MoveDefaults) => {
+      if (!selectedPointId) return
 
-    setRoutine((current) => {
-      const move: Move = {
-        id: createId(),
-        name: option.action.name,
-        hotkeyId: option.hotkeyId,
-        hotkeyActionId: option.action.id,
-        category: option.category,
-        holdDurationSeconds: DEFAULT_MOVE_HOLD_SECONDS,
-        direction: 'right',
-      }
-      newMoveId = move.id
+      let newMoveId: string | undefined
 
-      return {
+      setRoutine((current) => ({
         ...current,
-        moves: [...current.moves, move],
-      }
-    })
+        points: current.points.map((point) => {
+          if (point.id !== selectedPointId) return point
 
-    if (newMoveId) setSelectedMoveId(newMoveId)
-  }, [])
+          const move: Move = {
+            id: createId(),
+            name: option.action.name,
+            hotkeyId: option.hotkeyId,
+            hotkeyActionId: option.action.id,
+            category: option.category,
+            holdDurationSeconds: defaults.holdDurationSeconds,
+            direction: defaults.direction,
+          }
+          newMoveId = move.id
+
+          return {
+            ...point,
+            moves: [...point.moves, move],
+          }
+        }),
+      }))
+
+      if (newMoveId) setSelectedMoveId(newMoveId)
+    },
+    [selectedPointId],
+  )
 
   const deleteSelectedMove = useCallback(() => {
-    setRoutine((current) => {
-      if (!selectedMoveId) return current
+    if (!selectedPointId || !selectedMoveId) return
 
-      return {
-        ...current,
-        moves: current.moves.filter((move) => move.id !== selectedMoveId),
-        points: current.points.map((point) => ({
-          ...point,
-          moveIds: point.moveIds.filter((moveId) => moveId !== selectedMoveId),
-        })),
-      }
-    })
-    setSelectedMoveId(null)
-  }, [selectedMoveId])
-
-  const togglePointMove = useCallback((pointId: string, moveId: string) => {
     setRoutine((current) => ({
       ...current,
-      points: current.points.map((point) => {
-        if (point.id !== pointId) return point
-
-        const hasMove = point.moveIds.includes(moveId)
-        return {
-          ...point,
-          moveIds: hasMove
-            ? point.moveIds.filter((id) => id !== moveId)
-            : [...point.moveIds, moveId],
-        }
-      }),
+      points: current.points.map((point) =>
+        point.id === selectedPointId
+          ? {
+              ...point,
+              moves: point.moves.filter((move) => move.id !== selectedMoveId),
+            }
+          : point,
+      ),
     }))
-  }, [])
+    setSelectedMoveId(null)
+  }, [selectedMoveId, selectedPointId])
 
   const resetRoutine = useCallback(() => {
     setRoutine(createEmptyRoutine())
-    setSelectedPointId(null)
+    setSelectedPointIdState(null)
     setSelectedMoveId(null)
   }, [])
 
@@ -134,29 +139,20 @@ export function useRoutine() {
       ...createEmptyRoutine(),
       name: trimmed,
     })
-    setSelectedPointId(null)
+    setSelectedPointIdState(null)
     setSelectedMoveId(null)
   }, [])
 
   const loadRoutine = useCallback(
-    (item: {
-      id: string
-      name: string
-      hotkeyProfileId?: string | null
-      points: RoutinePoint[]
-      moves: Move[]
-    }) => {
+    (item: RoutineListItem & { moves?: Move[] }) => {
+      const normalized = normalizeRoutineListItem(item)
       setRoutine({
-        id: item.id,
-        name: item.name,
-        hotkeyProfileId: item.hotkeyProfileId ?? null,
-        points: item.points.map((point, index) => ({
-          ...point,
-          name: point.name ?? defaultPointName(index),
-        })),
-        moves: item.moves.map(normalizeMove),
+        id: normalized.id,
+        name: normalized.name,
+        hotkeyProfileId: normalized.hotkeyProfileId,
+        points: normalized.points,
       })
-      setSelectedPointId(null)
+      setSelectedPointIdState(null)
       setSelectedMoveId(null)
     },
     [],
@@ -215,18 +211,23 @@ export function useRoutine() {
 
   const updateSelectedMove = useCallback(
     (patch: Partial<Omit<Move, 'id'>>) => {
-      setRoutine((current) => {
-        if (!selectedMoveId) return current
+      if (!selectedPointId || !selectedMoveId) return
 
-        return {
-          ...current,
-          moves: current.moves.map((move) =>
-            move.id === selectedMoveId ? { ...move, ...patch } : move,
-          ),
-        }
-      })
+      setRoutine((current) => ({
+        ...current,
+        points: current.points.map((point) =>
+          point.id === selectedPointId
+            ? {
+                ...point,
+                moves: point.moves.map((move) =>
+                  move.id === selectedMoveId ? { ...move, ...patch } : move,
+                ),
+              }
+            : point,
+        ),
+      }))
     },
-    [selectedMoveId],
+    [selectedMoveId, selectedPointId],
   )
 
   return {
@@ -241,7 +242,6 @@ export function useRoutine() {
     deleteSelectedPoint,
     addMove,
     deleteSelectedMove,
-    togglePointMove,
     resetRoutine,
     startNewRoutine,
     loadRoutine,
@@ -258,6 +258,5 @@ export function toRegistryRoutine(routine: Routine) {
     name: routine.name,
     hotkeyProfileId: routine.hotkeyProfileId,
     points: routine.points,
-    moves: routine.moves,
   }
 }

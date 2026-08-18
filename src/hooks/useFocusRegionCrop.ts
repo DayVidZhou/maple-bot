@@ -4,6 +4,7 @@ import type { RoutinePoint } from '../types/routine'
 import type { User } from '../types/user'
 import { USER_NOT_FOUND } from '../types/user'
 import { detectUser, usersEqual } from '../utils/detectUser'
+import { ROUTINE_POLL_INTERVAL_MS } from '../utils/routineRunner'
 import {
   normalizedToCanvasCoord,
   ROUTINE_POINT_HIT_RADIUS,
@@ -48,14 +49,24 @@ export function useFocusRegionCrop(
     cropHeight: number
   }) => void,
 ) {
-  const animationRef = useRef<number>(0)
+  const intervalRef = useRef<number>(0)
   const lastUserRef = useRef<User>(USER_NOT_FOUND)
   const onFrameRef = useRef(onFrame)
+  const pointsRef = useRef(points)
+  const selectedPointIdRef = useRef(selectedPointId)
   const [user, setUser] = useState<User>(USER_NOT_FOUND)
 
   useEffect(() => {
     onFrameRef.current = onFrame
   }, [onFrame])
+
+  useEffect(() => {
+    pointsRef.current = points
+  }, [points])
+
+  useEffect(() => {
+    selectedPointIdRef.current = selectedPointId
+  }, [selectedPointId])
 
   useEffect(() => {
     if (!isActive) {
@@ -74,7 +85,6 @@ export function useFocusRegionCrop(
 
     const drawFocusRegion = () => {
       if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
-        animationRef.current = requestAnimationFrame(drawFocusRegion)
         return
       }
 
@@ -82,7 +92,6 @@ export function useFocusRegionCrop(
       const sourceHeight = video.videoHeight
 
       if (sourceWidth === 0 || sourceHeight === 0) {
-        animationRef.current = requestAnimationFrame(drawFocusRegion)
         return
       }
 
@@ -114,7 +123,12 @@ export function useFocusRegionCrop(
         ctx.stroke()
       }
 
-      drawRoutinePoints(ctx, canvas, points, selectedPointId)
+      drawRoutinePoints(
+        ctx,
+        canvas,
+        pointsRef.current,
+        selectedPointIdRef.current,
+      )
 
       onFrameRef.current?.({
         user: detectedUser,
@@ -126,14 +140,16 @@ export function useFocusRegionCrop(
         lastUserRef.current = detectedUser
         setUser(detectedUser)
       }
-
-      animationRef.current = requestAnimationFrame(drawFocusRegion)
     }
 
-    animationRef.current = requestAnimationFrame(drawFocusRegion)
+    drawFocusRegion()
+    intervalRef.current = window.setInterval(
+      drawFocusRegion,
+      ROUTINE_POLL_INTERVAL_MS,
+    )
 
     return () => {
-      cancelAnimationFrame(animationRef.current)
+      window.clearInterval(intervalRef.current)
     }
   }, [
     videoRef,
@@ -141,8 +157,6 @@ export function useFocusRegionCrop(
     isActive,
     focusSize.widthPercent,
     focusSize.heightPercent,
-    points,
-    selectedPointId,
   ])
 
   return { user }

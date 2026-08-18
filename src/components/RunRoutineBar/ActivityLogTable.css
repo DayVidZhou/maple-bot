@@ -19,7 +19,14 @@
   color: #fff;
 }
 
-.activity-log-clear {
+.activity-log-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.activity-log-clear,
+.activity-log-log-location {
   padding: 0.35rem 0.75rem;
   font-size: 0.8rem;
 }

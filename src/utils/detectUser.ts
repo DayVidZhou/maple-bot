@@ -262,18 +262,20 @@ export function detectUser(imageData: ImageData): User {
   return {
     isUserFound: true,
     location: {
-      x: Math.round(center.x),
-      y: Math.round(center.y),
+      x: center.x,
+      y: center.y,
     },
     radius: clusterRadius(bestCluster, center),
   }
 }
 
+const USER_COORD_EQUAL_EPSILON = 0.05
+
 export function usersEqual(a: User, b: User): boolean {
   return (
     a.isUserFound === b.isUserFound &&
-    a.location.x === b.location.x &&
-    a.location.y === b.location.y &&
-    (a.radius ?? 0) === (b.radius ?? 0)
+    Math.abs(a.location.x - b.location.x) < USER_COORD_EQUAL_EPSILON &&
+    Math.abs(a.location.y - b.location.y) < USER_COORD_EQUAL_EPSILON &&
+    Math.abs((a.radius ?? 0) - (b.radius ?? 0)) < USER_COORD_EQUAL_EPSILON
   )
 }

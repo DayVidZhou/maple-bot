@@ -1,6 +1,6 @@
 import type { HotkeyActionEntry } from './hotkey'
 import type { FocusRegionSize } from './focusRegion'
-import type { Move, RoutinePoint } from './routine'
+import type { RoutinePoint } from './routine'
 
 export interface MinimapProfileListItem extends FocusRegionSize {
   id: string
@@ -12,7 +12,6 @@ export interface RoutineListItem {
   name: string
   hotkeyProfileId?: string | null
   points: RoutinePoint[]
-  moves: Move[]
 }
 
 export interface HotkeyListItem {

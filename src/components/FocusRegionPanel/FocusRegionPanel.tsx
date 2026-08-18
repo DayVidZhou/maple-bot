@@ -2,12 +2,16 @@ import { useCallback, useState } from 'react'
 import { useFocusRegionContext } from '../../context/FocusRegionContext'
 import { useRunRoutineContext } from '../../context/RunRoutineContext'
 import { useRegistryContext } from '../../context/RegistryContext'
+import type { RoutinePoint } from '../../types/routine'
 import type { User } from '../../types/user'
 import { USER_NOT_FOUND } from '../../types/user'
+import { usersEqual } from '../../utils/detectUser'
 import { FocusRegionControls } from '../FocusRegionControls/FocusRegionControls'
 import { FocusRegionView } from '../FocusRegionView/FocusRegionView'
 import { MinimapProfilesSection } from './MinimapProfilesSection'
 import '../FocusRegionView/FocusRegionView.css'
+
+const EMPTY_ROUTINE_POINTS: RoutinePoint[] = []
 
 export function FocusRegionPanel() {
   const { focusSize, setFocusSize, selectedMinimapProfileId } =
@@ -21,7 +25,7 @@ export function FocusRegionPanel() {
 
   const [user, setUser] = useState<User>(USER_NOT_FOUND)
 
-  const displayPoints = selectedRoutine?.points ?? []
+  const displayPoints = selectedRoutine?.points ?? EMPTY_ROUTINE_POINTS
   const highlightPointId =
     currentPointIndex != null && selectedRoutine
       ? selectedRoutine.points[currentPointIndex]?.id ?? null
@@ -29,7 +33,9 @@ export function FocusRegionPanel() {
 
   const handleUserFrame = useCallback(
     (frame: { user: User; cropWidth: number; cropHeight: number }) => {
-      setUser(frame.user)
+      setUser((current) =>
+        usersEqual(current, frame.user) ? current : frame.user,
+      )
       updateUserTracker({
         user: frame.user,
         cropWidth: frame.cropWidth,

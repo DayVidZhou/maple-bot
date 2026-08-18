@@ -14,5 +14,5 @@ export const USER_NOT_FOUND: User = {
 
 export function formatUserLocation(user: User): string {
   if (!user.isUserFound) return 'Not detected'
-  return `x: ${user.location.x}, y: ${user.location.y}`
+  return `x: ${user.location.x.toFixed(1)}, y: ${user.location.y.toFixed(1)}`
 }

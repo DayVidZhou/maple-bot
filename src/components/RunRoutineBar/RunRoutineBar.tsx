@@ -10,6 +10,8 @@ export function RunRoutineBar() {
     error,
     selectedRoutine,
     canRun,
+    canLogUserLocation,
+    logUserLocation,
     startRun,
     stopRun,
   } = useRunRoutineContext()
@@ -61,7 +63,12 @@ export function RunRoutineBar() {
         )}
       </div>
 
-      <ActivityLogTable entries={entries} onClear={clearLog} />
+      <ActivityLogTable
+        entries={entries}
+        onClear={clearLog}
+        onLogUserLocation={logUserLocation}
+        canLogUserLocation={canLogUserLocation}
+      />
     </section>
   )
 }
