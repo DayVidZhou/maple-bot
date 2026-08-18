@@ -1,0 +1,91 @@
+.buff-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: 100%;
+}
+
+.buff-status-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.buff-status-subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.buff-status-table-wrap {
+  max-height: 160px;
+  overflow: auto;
+  border: 1px solid #2a2f3d;
+  border-radius: 8px;
+  background: #0a0c10;
+}
+
+.buff-status-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.buff-status-table th,
+.buff-status-table td {
+  padding: 0.45rem 0.65rem;
+  text-align: left;
+  border-bottom: 1px solid #1f2430;
+  white-space: nowrap;
+}
+
+.buff-status-table th {
+  position: sticky;
+  top: 0;
+  background: #141820;
+  color: #9aa0a6;
+  font-weight: 500;
+  z-index: 1;
+}
+
+.buff-status-table td {
+  color: #d1d5db;
+}
+
+.buff-status-table td:nth-child(2) {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #fbbf24;
+}
+
+.buff-status-state {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #a7f3d0;
+}
+
+.buff-status-empty {
+  text-align: center !important;
+  color: #6b7280 !important;
+  padding: 1rem !important;
+  white-space: normal !important;
+}
+
+.buff-status-row-inactive td {
+  color: #6b7280;
+}
+
+.buff-status-row-casting .buff-status-state {
+  color: #fbbf24;
+}
+
+.buff-status-row-cooldown .buff-status-state {
+  color: #93c5fd;
+}
+
+.buff-status-row-queued .buff-status-state {
+  color: #c4b5fd;
+}
+
+.buff-status-row-ready .buff-status-state {
+  color: #86efac;
+}

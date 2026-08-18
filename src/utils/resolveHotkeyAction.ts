@@ -30,17 +30,31 @@ export function resolveMoveButtonKey(
   return action?.buttonKey?.trim() || null
 }
 
+export function resolveHotkeyProfile(
+  hotkeys: HotkeyListItem[],
+  profileId: string | null,
+): HotkeyListItem | null {
+  if (!profileId) return null
+  return hotkeys.find((hotkey) => hotkey.id === profileId) ?? null
+}
+
 export function resolveJumpKey(
   hotkeys: HotkeyListItem[],
   profileId: string | null,
 ): string | null {
-  if (!profileId) return null
-
-  const profile = hotkeys.find((hotkey) => hotkey.id === profileId)
+  const profile = resolveHotkeyProfile(hotkeys, profileId)
   if (!profile) return null
 
   const jump = profile.moves.find(
     (entry) => entry.name.trim().toLowerCase() === 'jump',
   )
   return jump?.buttonKey?.trim() || null
+}
+
+export function resolveRoutineBuffs(
+  hotkeys: HotkeyListItem[],
+  profileId: string | null,
+): HotkeyActionEntry[] {
+  const profile = resolveHotkeyProfile(hotkeys, profileId)
+  return profile?.buffs ?? []
 }

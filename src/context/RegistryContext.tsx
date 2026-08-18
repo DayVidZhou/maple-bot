@@ -94,10 +94,17 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
       hotkeys: HotkeyListItem[]
       minimapProfiles: MinimapProfileListItem[]
     }) => {
-      setRoutines(
-        data.routines.map((routine) => normalizeRoutineListItem(routine)),
+      const loadedRoutines = data.routines.map((routine) =>
+        normalizeRoutineListItem(routine),
       )
-      setHotkeys(data.hotkeys.map((hotkey) => normalizeHotkeyListItem(hotkey)))
+      const loadedHotkeys = data.hotkeys.map((hotkey) =>
+        normalizeHotkeyListItem(hotkey),
+      )
+
+      setRoutines(loadedRoutines)
+      setHotkeys(loadedHotkeys)
+      setSelectedRoutineId(loadedRoutines[0]?.id ?? null)
+      setSelectedHotkeyId(loadedHotkeys[0]?.id ?? null)
 
       const loadedProfiles = data.minimapProfiles.map(normalizeMinimapProfile)
       const profiles =
@@ -223,17 +230,33 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
   )
 
   const removeSelectedRoutine = useCallback(() => {
-    setRoutines((current) =>
-      current.filter((item) => item.id !== selectedRoutineId),
-    )
-    setSelectedRoutineId(null)
+    if (!selectedRoutineId) return
+
+    setRoutines((current) => {
+      const index = current.findIndex((item) => item.id === selectedRoutineId)
+      if (index === -1) return current
+
+      const next = current.filter((item) => item.id !== selectedRoutineId)
+      const fallback =
+        next[Math.min(index, next.length - 1)]?.id ?? next[0]?.id ?? null
+      setSelectedRoutineId(fallback)
+      return next
+    })
   }, [selectedRoutineId])
 
   const removeSelectedHotkey = useCallback(() => {
-    setHotkeys((current) =>
-      current.filter((item) => item.id !== selectedHotkeyId),
-    )
-    setSelectedHotkeyId(null)
+    if (!selectedHotkeyId) return
+
+    setHotkeys((current) => {
+      const index = current.findIndex((item) => item.id === selectedHotkeyId)
+      if (index === -1) return current
+
+      const next = current.filter((item) => item.id !== selectedHotkeyId)
+      const fallback =
+        next[Math.min(index, next.length - 1)]?.id ?? next[0]?.id ?? null
+      setSelectedHotkeyId(fallback)
+      return next
+    })
   }, [selectedHotkeyId])
 
   const removeSelectedMinimapProfile = useCallback(() => {

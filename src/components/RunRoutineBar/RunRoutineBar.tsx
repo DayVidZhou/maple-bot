@@ -1,6 +1,7 @@
 import { useActivityLogContext } from '../../context/ActivityLogContext'
 import { useRunRoutineContext } from '../../context/RunRoutineContext'
 import { ActivityLogTable } from './ActivityLogTable'
+import { BuffStatusTable } from './BuffStatusTable'
 import './RunRoutineBar.css'
 
 export function RunRoutineBar() {
@@ -9,6 +10,8 @@ export function RunRoutineBar() {
     status,
     error,
     selectedRoutine,
+    buffStatuses,
+    hotkeyProfileName,
     canRun,
     canLogUserLocation,
     logUserLocation,
@@ -62,6 +65,12 @@ export function RunRoutineBar() {
           </span>
         )}
       </div>
+
+      <BuffStatusTable
+        rows={buffStatuses}
+        hotkeyProfileName={hotkeyProfileName}
+        isRunning={isRunning}
+      />
 
       <ActivityLogTable
         entries={entries}

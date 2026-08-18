@@ -1,4 +1,5 @@
-import { app, BrowserWindow, ipcMain, session } from 'electron'
+import { app, BrowserWindow, desktopCapturer, ipcMain, session } from 'electron'
+import type { DesktopCapturerSource } from 'electron'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -42,13 +43,52 @@ function createWindow() {
   }
 }
 
-function registerDisplayMediaHandler() {
-  session.defaultSession.setDisplayMediaRequestHandler(
-    (_request, callback) => {
-      callback({})
-    },
-    { useSystemPicker: true },
+async function pickDesktopCaptureSource(): Promise<DesktopCapturerSource | null> {
+  const sources = await desktopCapturer.getSources({
+    types: ['screen', 'window'],
+    fetchWindowIcons: false,
+    thumbnailSize: { width: 0, height: 0 },
+  })
+
+  if (sources.length === 0) return null
+
+  const mapleStory = sources.find((source) =>
+    source.name.toLowerCase().includes('maplestory'),
   )
+  if (mapleStory) return mapleStory
+
+  return (
+    sources.find((source) => source.id.startsWith('screen:')) ?? sources[0]
+  )
+}
+
+function registerDisplayMediaHandler() {
+  if (process.platform === 'darwin') {
+    session.defaultSession.setDisplayMediaRequestHandler(
+      (_request, callback) => {
+        callback({})
+      },
+      { useSystemPicker: true },
+    )
+    return
+  }
+
+  // Windows/Linux: useSystemPicker + callback({}) often yields no video stream.
+  session.defaultSession.setDisplayMediaRequestHandler((_request, callback) => {
+    void pickDesktopCaptureSource()
+      .then((source) => {
+        if (source) {
+          callback({ video: source })
+          return
+        }
+        console.warn('No desktop capture sources available')
+        callback({})
+      })
+      .catch((err) => {
+        console.error('Desktop capture source lookup failed:', err)
+        callback({})
+      })
+  })
 }
 
 function registerIpcHandlers() {

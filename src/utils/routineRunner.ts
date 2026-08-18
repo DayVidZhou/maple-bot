@@ -3,11 +3,13 @@ import type { Coordinates } from '../types/coordinates'
 import type { HotkeyListItem, RoutineListItem } from '../types/registry'
 import type { Move, RoutinePoint } from '../types/routine'
 import { formatMoveDirectionLabel, hasMoveDirection } from '../types/routine'
+import type { BuffRunner } from './buffRunner'
 import { ROUTINE_POINT_HIT_RADIUS } from './focusRegionCoords'
 import {
   resolveJumpKey,
   resolveMoveAction,
   resolveMoveButtonKey,
+  resolveRoutineBuffs,
 } from './resolveHotkeyAction'
 import { activityLogPositions, appendCoordDelta } from './activityLogCoords'
 import { pointToMinimapCoord } from './userCoords'
@@ -40,9 +42,15 @@ export interface RoutineRunnerDeps {
   getUserMinimapCoord(): Coordinates | null
   getCropSize(): { width: number; height: number } | null
   shouldAbort(): boolean
+  buffRunner?: BuffRunner | null
   onStatus?(message: string): void
   onPointIndexChange?(index: number): void
   onActivityLog?(entry: ActivityLogInput): void
+}
+
+async function tickBuffs(deps: RoutineRunnerDeps): Promise<void> {
+  if (!deps.buffRunner || deps.buffRunner.activeBuffCount === 0) return
+  await deps.buffRunner.tick()
 }
 
 function logRoutineActivity(
@@ -169,6 +177,7 @@ async function waitWhile(
     if (!(await deps.isMapleStoryFocused())) {
       throw new RoutineRunAbortError('MapleStory Worlds is no longer focused')
     }
+    await tickBuffs(deps)
     await sleep(ROUTINE_POLL_INTERVAL_MS)
   }
 }
@@ -310,6 +319,7 @@ async function moveToPoint(
       }
 
       deps.onStatus?.(`Moving to ${point.name}...`)
+      await tickBuffs(deps)
       await sleep(ROUTINE_POLL_INTERVAL_MS)
     }
   } finally {
@@ -464,6 +474,11 @@ export async function runRoutineLoop(
     detail: routine.name,
   })
 
+  const buffEntries = resolveRoutineBuffs(hotkeys, routine.hotkeyProfileId ?? null)
+  if (deps.buffRunner && buffEntries.length > 0) {
+    await deps.buffRunner.runInitialSequence()
+  }
+
   while (true) {
     assertRunning(deps)
     if (!(await deps.isMapleStoryFocused())) {
@@ -498,6 +513,7 @@ export async function runRoutineLoop(
         point,
       )
       await moveToPoint(deps, point, jumpKey)
+      await tickBuffs(deps)
       const atPointUser = deps.getUserMinimapCoord()
       logRoutineActivityWithPoint(
         deps,

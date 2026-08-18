@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -10,6 +11,8 @@ import {
 import { useKeyboard } from '../hooks/useKeyboard'
 import { useActivityLogContext } from './ActivityLogContext'
 import type { Coordinates } from '../types/coordinates'
+import type { BuffStatusRow } from '../types/buffStatus'
+import { buffStatusFromEntry } from '../types/buffStatus'
 import type { RoutineListItem } from '../types/registry'
 import type { RoutinePoint } from '../types/routine'
 import type { User } from '../types/user'
@@ -19,6 +22,8 @@ import {
   runRoutineLoop,
   type RoutineRunnerKeyboard,
 } from '../utils/routineRunner'
+import { BuffRunner } from '../utils/buffRunner'
+import { resolveRoutineBuffs } from '../utils/resolveHotkeyAction'
 import { activityLogCoordContextRef, activityLogPositions, appendCoordDelta } from '../utils/activityLogCoords'
 import {
   pointToMinimapCoord,
@@ -39,6 +44,8 @@ interface RunRoutineContextValue {
   error: string | null
   currentPointIndex: number | null
   selectedRoutine: RoutineListItem | null
+  buffStatuses: BuffStatusRow[]
+  hotkeyProfileName: string | null
   canRun: boolean
   canLogUserLocation: boolean
   updateUserTracker: (tracker: UserTracker) => void
@@ -61,6 +68,9 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
   const [currentPointIndex, setCurrentPointIndex] = useState<number | null>(
     null,
   )
+  const [buffStatuses, setBuffStatuses] = useState<BuffStatusRow[]>([])
+
+  const buffRunnerRef = useRef<BuffRunner | null>(null)
 
   const abortRef = useRef(false)
   const abortReasonRef = useRef<string | null>(null)
@@ -95,6 +105,35 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
     () => routines.find((routine) => routine.id === selectedRoutineId) ?? null,
     [routines, selectedRoutineId],
   )
+
+  const linkedHotkeyProfile = useMemo(() => {
+    if (!selectedRoutine?.hotkeyProfileId) return null
+    return hotkeys.find((hotkey) => hotkey.id === selectedRoutine.hotkeyProfileId) ?? null
+  }, [hotkeys, selectedRoutine])
+
+  const idleBuffStatuses = useMemo(
+    () =>
+      (linkedHotkeyProfile?.buffs ?? []).map((entry) => buffStatusFromEntry(entry)),
+    [linkedHotkeyProfile],
+  )
+
+  useEffect(() => {
+    if (!isRunning) {
+      setBuffStatuses(idleBuffStatuses)
+    }
+  }, [idleBuffStatuses, isRunning])
+
+  useEffect(() => {
+    if (!isRunning || !buffRunnerRef.current) return
+
+    const intervalId = window.setInterval(() => {
+      const runner = buffRunnerRef.current
+      if (!runner) return
+      setBuffStatuses(runner.getSnapshot())
+    }, 100)
+
+    return () => window.clearInterval(intervalId)
+  }, [isRunning])
 
   const canRun = Boolean(
     isAvailable &&
@@ -190,9 +229,24 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
       tapKey,
     }
 
+    const buffEntries = resolveRoutineBuffs(
+      hotkeys,
+      selectedRoutine.hotkeyProfileId ?? null,
+    )
+    const buffRunner = new BuffRunner(buffEntries, {
+      keyboard,
+      shouldAbort: () => abortRef.current,
+      onActivityLog: logActivity,
+      onStatus: setStatus,
+      onBuffStatusChange: setBuffStatuses,
+    })
+    buffRunnerRef.current = buffRunner
+    setBuffStatuses(buffRunner.getSnapshot())
+
     try {
       await runRoutineLoop(selectedRoutine, hotkeys, {
         keyboard,
+        buffRunner,
         focusMapleStory: async () => {
           if (!window.electronAPI) {
             throw new Error('Keyboard control requires the Electron app')
@@ -244,15 +298,18 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
     } finally {
       await releaseAllHeldKeys()
       abortRef.current = false
+      buffRunnerRef.current = null
       setIsRunning(false)
       setCurrentPointIndex(null)
       currentPointRef.current = null
       activityLogCoordContextRef.current = { user: null, point: null }
+      setBuffStatuses(idleBuffStatuses)
     }
   }, [
     canRun,
     clearLog,
     hotkeys,
+    idleBuffStatuses,
     logActivity,
     releaseAllHeldKeys,
     selectedRoutine,
@@ -267,6 +324,8 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
     error,
     currentPointIndex,
     selectedRoutine,
+    buffStatuses,
+    hotkeyProfileName: linkedHotkeyProfile?.name ?? null,
     canRun,
     canLogUserLocation,
     updateUserTracker,
