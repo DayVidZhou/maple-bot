@@ -29,6 +29,8 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.mjs'),
       contextIsolation: true,
       nodeIntegration: false,
+      // Keep timers and capture processing alive while MapleStory has focus.
+      backgroundThrottling: false,
     },
   })
 
