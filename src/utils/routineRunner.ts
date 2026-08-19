@@ -419,27 +419,43 @@ async function executeMove(
   )
 
   const direction = hasMoveDirection(move.direction) ? move.direction : null
-  let pressedDirection = false
+
   if (direction && facing.direction !== direction) {
-    await deps.keyboard.pressKey(direction)
+    await deps.keyboard.tapKey(direction)
     facing.direction = direction
-    pressedDirection = true
+    logRoutineActivityWithPoint(
+      deps,
+      {
+        category: 'routine',
+        event: 'Face direction',
+        key: direction,
+        detail: `${move.name} · turn to ${direction}`,
+      },
+      user,
+      point,
+    )
+  } else if (direction) {
+    logRoutineActivityWithPoint(
+      deps,
+      {
+        category: 'routine',
+        event: 'Skip face direction',
+        key: direction,
+        detail: `${move.name} · already facing ${direction}`,
+      },
+      user,
+      point,
+    )
   }
 
-  try {
-    await deps.keyboard.pressKey(buttonKey)
-    await sleepWithUserLocationLogging(
-      deps,
-      Math.max(0, move.holdDurationSeconds * 1000),
-      point,
-      `Using ${move.name}`,
-    )
-    await deps.keyboard.releaseKey(buttonKey)
-  } finally {
-    if (pressedDirection && direction) {
-      await deps.keyboard.releaseKey(direction)
-    }
-  }
+  await deps.keyboard.pressKey(buttonKey)
+  await sleepWithUserLocationLogging(
+    deps,
+    Math.max(0, move.holdDurationSeconds * 1000),
+    point,
+    `Using ${move.name}`,
+  )
+  await deps.keyboard.releaseKey(buttonKey)
 
   const castTimeMs = (action?.castTimeSeconds ?? 0) * 1000
   if (castTimeMs > 0) {

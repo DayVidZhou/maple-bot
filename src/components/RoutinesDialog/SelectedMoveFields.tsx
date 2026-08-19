@@ -38,7 +38,7 @@ export function SelectedMoveFields({
         At this point: {buttonKey ? `hold ${buttonKey}` : 'configure key in hotkeys'}{' '}
         for {move.holdDurationSeconds}s
         {move.direction
-          ? ` while holding ${formatMoveDirectionLabel(move.direction)}`
+          ? ` facing ${formatMoveDirectionLabel(move.direction)} (turns only if needed)`
           : ''}
         .
       </p>
