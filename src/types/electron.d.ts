@@ -18,6 +18,24 @@ export interface ElectronAPI {
   ) => Promise<{ savedAt: string }>
   tapKey: (key: string) => Promise<void>
   typeText: (text: string) => Promise<void>
+  reportDiscordStatus: (patch: {
+    captureActive?: boolean
+    routineRunning?: boolean
+    routineName?: string | null
+    routineStatus?: string | null
+    routinePointIndex?: number | null
+    userCoords?: string | null
+  }) => void
+  sendDiscordScreenshot: (routineName?: string) => Promise<void>
+  sendDiscordTestMessage: () => Promise<void>
+  getDiscordStatus: () => Promise<{
+    enabled: boolean
+    connected: boolean
+    botTag: string | null
+    hasToken: boolean
+    hasClientId: boolean
+    hasOwnerId: boolean
+  }>
 }
 
 declare global {

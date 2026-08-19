@@ -1,0 +1,63 @@
+.discord-debug-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #2a2f3d;
+  border-radius: 8px;
+  background: #12151c;
+}
+
+.discord-debug-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.discord-debug-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.discord-debug-summary {
+  margin: 0.2rem 0 0;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+}
+
+.discord-debug-config {
+  margin: 0.25rem 0 0;
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.discord-debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.discord-debug-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.discord-debug-success {
+  color: #4ade80;
+}
+
+.discord-debug-error {
+  color: #ffb4b0;
+}
+
+.discord-debug-hint {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}

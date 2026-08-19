@@ -17,6 +17,7 @@ function createEmptyRoutine(): Routine {
     id: createId(),
     name: 'Untitled Routine',
     points: [],
+    sendDiscordScreenshots: false,
   }
 }
 
@@ -149,6 +150,7 @@ export function useRoutine() {
         id: normalized.id,
         name: normalized.name,
         points: normalized.points,
+        sendDiscordScreenshots: normalized.sendDiscordScreenshots,
       })
       setSelectedPointIdState(null)
       setSelectedMoveId(null)
@@ -160,6 +162,13 @@ export function useRoutine() {
     setRoutine((current) => ({
       ...current,
       name: name.trim() || current.name,
+    }))
+  }, [])
+
+  const setSendDiscordScreenshots = useCallback((enabled: boolean) => {
+    setRoutine((current) => ({
+      ...current,
+      sendDiscordScreenshots: enabled,
     }))
   }, [])
 
@@ -236,6 +245,7 @@ export function useRoutine() {
     startNewRoutine,
     loadRoutine,
     setRoutineName,
+    setSendDiscordScreenshots,
     setSelectedPointName,
     updatePointPosition,
     updateSelectedMove,
@@ -246,5 +256,6 @@ export function toRegistryRoutine(routine: Routine) {
   return {
     name: routine.name,
     points: routine.points,
+    sendDiscordScreenshots: routine.sendDiscordScreenshots,
   }
 }

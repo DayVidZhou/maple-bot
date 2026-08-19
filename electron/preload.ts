@@ -20,4 +20,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   releaseKey: (key: string) => ipcRenderer.invoke('keyboard:release', key),
   tapKey: (key: string) => ipcRenderer.invoke('keyboard:tap', key),
   typeText: (text: string) => ipcRenderer.invoke('keyboard:type', text),
+  reportDiscordStatus: (patch: {
+    captureActive?: boolean
+    routineRunning?: boolean
+    routineName?: string | null
+    routineStatus?: string | null
+    routinePointIndex?: number | null
+    userCoords?: string | null
+  }) => {
+    ipcRenderer.send('discord:report-status', patch)
+  },
+  sendDiscordScreenshot: (routineName?: string) =>
+    ipcRenderer.invoke('discord:send-screenshot', routineName),
+  sendDiscordTestMessage: () => ipcRenderer.invoke('discord:send-test-message'),
+  getDiscordStatus: () => ipcRenderer.invoke('discord:get-status'),
 })

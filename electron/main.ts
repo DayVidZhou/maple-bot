@@ -1,3 +1,4 @@
+import './env'
 import { app, BrowserWindow, desktopCapturer, ipcMain, session } from 'electron'
 import type { DesktopCapturerSource } from 'electron'
 import path from 'node:path'
@@ -8,6 +9,14 @@ import {
   isApplicationFocused,
   MAPLESTORY_WORLDS_APP_NAME,
 } from './apps'
+import { updateAppDiscordStatus } from './appStatus'
+import {
+  startDiscordBot,
+  stopDiscordBot,
+  sendOwnerScreenshotDm,
+  sendOwnerTestMessageDm,
+  getDiscordConnectionStatus,
+} from './discordBot'
 import { pressKey, releaseKey, tapKey, typeText } from './keyboard'
 import { createRegistrySaveHandlers } from './registrySave'
 
@@ -19,6 +28,7 @@ const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
 const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 let mainWindow: BrowserWindow | null = null
+let discordClient: Awaited<ReturnType<typeof startDiscordBot>> = null
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -148,12 +158,56 @@ function registerIpcHandlers() {
   ipcMain.handle('keyboard:type', async (_event, text: string) => {
     await typeText(text)
   })
+
+  ipcMain.on('discord:report-status', (_event, patch) => {
+    updateAppDiscordStatus(patch)
+  })
+
+  ipcMain.handle(
+    'discord:send-screenshot',
+    async (_event, routineName?: string) => {
+      console.log('[discord] IPC send-screenshot', {
+        routineName: typeof routineName === 'string' ? routineName : null,
+      })
+      try {
+        await sendOwnerScreenshotDm(
+          typeof routineName === 'string' ? routineName : undefined,
+        )
+      } catch (err) {
+        console.error('[discord] IPC send-screenshot failed', err)
+        throw err
+      }
+    },
+  )
+
+  ipcMain.handle('discord:send-test-message', async () => {
+    console.log('[discord] IPC send-test-message')
+    try {
+      await sendOwnerTestMessageDm()
+    } catch (err) {
+      console.error('[discord] IPC send-test-message failed', err)
+      throw err
+    }
+  })
+
+  ipcMain.handle('discord:get-status', () => {
+    const status = getDiscordConnectionStatus()
+    console.log('[discord] IPC get-status', status)
+    return status
+  })
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   registerDisplayMediaHandler()
   registerIpcHandlers()
   createWindow()
+  console.log('[discord] Launching bot from app ready')
+  discordClient = await startDiscordBot({
+    getPlatform: () => process.platform,
+  })
+  console.log('[discord] Bot launch finished', {
+    connected: discordClient?.isReady?.() ?? false,
+  })
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -166,4 +220,8 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  void stopDiscordBot(discordClient)
 })

@@ -8,6 +8,7 @@ import { HotkeyProvider } from './HotkeyContext'
 import { RoutineProvider } from './RoutineContext'
 import { RunRoutineProvider } from './RunRoutineContext'
 import { ScreenCaptureProvider } from './ScreenCaptureContext'
+import { DiscordStatusBridge } from '../components/DiscordStatusBridge/DiscordStatusBridge'
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -19,7 +20,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
               <ActivityLogProvider>
                 <HotkeyProvider>
                   <RoutineProvider>
-                    <RunRoutineProvider>{children}</RunRoutineProvider>
+                    <RunRoutineProvider>
+                      <DiscordStatusBridge />
+                      {children}
+                    </RunRoutineProvider>
                   </RoutineProvider>
                 </HotkeyProvider>
               </ActivityLogProvider>

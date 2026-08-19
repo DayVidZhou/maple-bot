@@ -2,6 +2,7 @@ import { useActivityLogContext } from '../../context/ActivityLogContext'
 import { useRunRoutineContext } from '../../context/RunRoutineContext'
 import { ActivityLogTable } from './ActivityLogTable'
 import { BuffStatusTable } from './BuffStatusTable'
+import { DiscordDebugPanel } from '../DiscordDebugPanel/DiscordDebugPanel'
 import './RunRoutineBar.css'
 
 export function RunRoutineBar() {
@@ -65,6 +66,8 @@ export function RunRoutineBar() {
           </span>
         )}
       </div>
+
+      <DiscordDebugPanel />
 
       <BuffStatusTable
         rows={buffStatuses}

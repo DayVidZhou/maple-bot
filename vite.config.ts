@@ -14,7 +14,7 @@ export default defineConfig({
         vite: {
           build: {
             rollupOptions: {
-              external: ['electron', '@nut-tree-fork/nut-js'],
+              external: ['electron', '@nut-tree-fork/nut-js', 'discord.js', 'dotenv'],
             },
           },
         },

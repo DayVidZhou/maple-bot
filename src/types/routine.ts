@@ -50,6 +50,7 @@ export interface Routine {
   id: string
   name: string
   points: RoutinePoint[]
+  sendDiscordScreenshots: boolean
 }
 
 export function createId(): string {
@@ -108,6 +109,7 @@ export function normalizeRoutineListItem(item: {
   id: string
   name: string
   hotkeyProfileId?: string | null
+  sendDiscordScreenshots?: boolean
   points?: Array<{
     id: string
     name: string
@@ -121,12 +123,14 @@ export function normalizeRoutineListItem(item: {
   id: string
   name: string
   points: RoutinePoint[]
+  sendDiscordScreenshots: boolean
 } {
   const legacyMoves = (item.moves ?? []).map(normalizeMove)
 
   return {
     id: item.id,
     name: item.name,
+    sendDiscordScreenshots: item.sendDiscordScreenshots === true,
     points: (item.points ?? []).map((point, index) => ({
       ...normalizeRoutinePoint(point, legacyMoves),
       name: point.name ?? defaultPointName(index),

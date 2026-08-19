@@ -154,6 +154,7 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
       id: createId(),
       name: trimmed,
       points: routine.points,
+      sendDiscordScreenshots: routine.sendDiscordScreenshots === true,
     }
     setRoutines((current) => [...current, item])
     setSelectedRoutineId(item.id)
@@ -171,6 +172,7 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
                 ...item,
                 name: trimmed,
                 points: routine.points,
+                sendDiscordScreenshots: routine.sendDiscordScreenshots === true,
               }
             : item,
         ),

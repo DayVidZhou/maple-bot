@@ -17,9 +17,12 @@ const MARKER_TEMPLATE: readonly (readonly number[])[] = [
 ]
 
 const TEMPLATE_SIZE = MARKER_TEMPLATE.length
-const MIN_CLUSTER_SIZE = 8
-const MAX_CLUSTER_SIZE = 500
-const IDEAL_CLUSTER_SIZE = 50
+const MIN_CLUSTER_SIZE = 6
+const MAX_YELLOW_CLUSTER_SIZE = 96
+const IDEAL_CLUSTER_SIZE = 22
+/** Player plus icon fits in a small box — platform outlines are larger/thinner. */
+const MAX_PLAYER_MARKER_BOX = 22
+const MIN_PLAYER_MARKER_DENSITY = 0.22
 /** Top band of the MSW mini-map crop — title, location text, and map thumbnail. */
 const MINIMAP_CHROME_TOP_FRACTION = 0.26
 /** Top-left thumbnail sits below the title but above the playable map area. */
@@ -82,29 +85,47 @@ function isBrownGround(r: number, g: number, b: number): boolean {
 
 function isMarkerYellow(r: number, g: number, b: number): boolean {
   if (isDarkBackground(r, g, b) || isBrownGround(r, g, b)) return false
-  if (r < 195 || g < 195) return false
-  if (b < 70 || b > 130) return false
-  if (Math.abs(r - g) > 25) return false
-  if (g > r + 10) return false
+  // Bright yellow plus — stricter than platform tan/yellow.
+  if (r < 210 || g < 210) return false
+  if (b < 55 || b > 125) return false
+  if (Math.abs(r - g) > 20) return false
+  if (g > r + 8) return false
 
   return true
 }
 
 function isMarkerCore(r: number, g: number, b: number): boolean {
-  return r >= 235 && g >= 235 && b >= 70 && b <= 130 && Math.abs(r - g) <= 20
+  return r >= 240 && g >= 240 && b >= 60 && b <= 120 && Math.abs(r - g) <= 15
 }
 
 function isPlayerBlue(r: number, g: number, b: number): boolean {
   if (isDarkBackground(r, g, b) || isBrownGround(r, g, b)) return false
-  // MSW minimap player icon — bright blue circle (not teal water/sharks).
+  // Other players / map icons — compact filled blue circle only.
   return (
-    b >= 155 &&
-    r <= 115 &&
-    g <= 185 &&
-    b > r + 45 &&
-    b > g + 12 &&
-    r + g > 90
+    b >= 170 &&
+    r <= 95 &&
+    g <= 165 &&
+    b > r + 55 &&
+    b > g + 18 &&
+    r + g > 80
   )
+}
+
+function playerMarkerShapePenalty(cluster: Coordinates[]): number {
+  const { minX, maxX, minY, maxY } = clusterBounds(cluster)
+  const boxWidth = maxX - minX + 1
+  const boxHeight = maxY - minY + 1
+  const maxDim = Math.max(boxWidth, boxHeight)
+
+  if (maxDim > MAX_PLAYER_MARKER_BOX) return Infinity
+
+  const density = cluster.length / (boxWidth * boxHeight)
+  if (density < MIN_PLAYER_MARKER_DENSITY) return Infinity
+
+  const aspectRatio = boxWidth / boxHeight
+  if (aspectRatio < 0.45 || aspectRatio > 2.2) return Infinity
+
+  return Math.abs(maxDim - 12) * 2 + Math.abs(density - 0.45) * 20
 }
 
 function findClusters(
@@ -112,7 +133,7 @@ function findClusters(
   height: number,
   mask: boolean[],
   minSize = MIN_CLUSTER_SIZE,
-  maxSize = MAX_CLUSTER_SIZE,
+  maxSize = MAX_YELLOW_CLUSTER_SIZE,
 ): Coordinates[][] {
   const visited = new Array(width * height).fill(false)
   const clusters: Coordinates[][] = []
@@ -250,6 +271,9 @@ function clusterScore(
   width: number,
   data: Uint8ClampedArray,
 ): number {
+  const shapePenalty = playerMarkerShapePenalty(cluster)
+  if (!Number.isFinite(shapePenalty)) return -Infinity
+
   let colorScore = 0
   let corePixels = 0
 
@@ -263,20 +287,19 @@ function clusterScore(
     if (isMarkerCore(r, g, b)) corePixels++
   }
 
-  if (corePixels === 0) return -Infinity
+  if (corePixels < 2) return -Infinity
 
   const averageColorScore = colorScore / cluster.length
   const templateScore = templateMatchScore(clusterToTemplateGrid(cluster)) * 120
-  const sizePenalty = Math.abs(cluster.length - IDEAL_CLUSTER_SIZE) * 0.8
-  const { minX, maxX, minY, maxY } = clusterBounds(cluster)
-  const boxWidth = maxX - minX + 1
-  const boxHeight = maxY - minY + 1
-  const aspectRatio = boxWidth / boxHeight
-  const aspectPenalty =
-    aspectRatio < 0.55 || aspectRatio > 1.8 ? 40 : Math.abs(aspectRatio - 1) * 10
+  const sizePenalty = Math.abs(cluster.length - IDEAL_CLUSTER_SIZE) * 1.2
+  const coreBonus = corePixels * 4
 
   return (
-    averageColorScore + templateScore + corePixels * 3 - sizePenalty - aspectPenalty
+    averageColorScore +
+    templateScore +
+    coreBonus -
+    sizePenalty -
+    shapePenalty
   )
 }
 
@@ -285,6 +308,9 @@ function clusterBlueScore(
   width: number,
   data: Uint8ClampedArray,
 ): number {
+  const shapePenalty = playerMarkerShapePenalty(cluster)
+  if (!Number.isFinite(shapePenalty)) return -Infinity
+
   let blueScore = 0
   let bluePixels = 0
 
@@ -300,13 +326,13 @@ function clusterBlueScore(
     blueScore += b - r * 0.45
   }
 
-  if (bluePixels < 5) return -Infinity
+  if (bluePixels < 6) return -Infinity
 
   const fillRatio = bluePixels / cluster.length
-  if (fillRatio < 0.55) return -Infinity
+  if (fillRatio < 0.62) return -Infinity
 
   const sizePenalty = Math.abs(cluster.length - IDEAL_BLUE_CLUSTER_SIZE) * 1.1
-  return blueScore / cluster.length + fillRatio * 45 - sizePenalty
+  return blueScore / cluster.length + fillRatio * 45 - sizePenalty - shapePenalty
 }
 
 function pickBestCluster(
@@ -335,6 +361,10 @@ function pickBestCluster(
 
   if (lastLocation) {
     const maxJump = Math.max(width, height) * MAX_TRACK_JUMP_FRACTION
+    const bestGlobal = scored.reduce((best, entry) =>
+      entry.score > best.score ? entry : best,
+    )
+
     const nearLast = scored
       .filter(
         (entry) =>
@@ -356,7 +386,14 @@ function pickBestCluster(
         return b.score - a.score
       })
 
-    if (nearLast.length > 0) return nearLast[0].cluster
+    if (nearLast.length > 0) {
+      const bestNear = nearLast[0]
+      // Recover from a bad lock when another marker scores much better.
+      if (bestGlobal.score > bestNear.score + 20) {
+        return bestGlobal.cluster
+      }
+      return bestNear.cluster
+    }
   }
 
   return scored.reduce((best, entry) =>
@@ -391,7 +428,7 @@ function detectFromMask(
   maxClusterSize: number,
   scoreCluster: (cluster: Coordinates[]) => number,
   lastLocation: Coordinates | null | undefined,
-): User {
+): { user: User; score: number } {
   const { width, height } = imageData
   const clusters = findClusters(
     width,
@@ -401,7 +438,9 @@ function detectFromMask(
     maxClusterSize,
   )
 
-  if (clusters.length === 0) return USER_NOT_FOUND
+  if (clusters.length === 0) {
+    return { user: USER_NOT_FOUND, score: -Infinity }
+  }
 
   const bestCluster = pickBestCluster(
     clusters,
@@ -410,16 +449,24 @@ function detectFromMask(
     scoreCluster,
     lastLocation,
   )
-  if (!bestCluster) return USER_NOT_FOUND
+  if (!bestCluster) {
+    return { user: USER_NOT_FOUND, score: -Infinity }
+  }
 
-  if (scoreCluster(bestCluster) === -Infinity) return USER_NOT_FOUND
+  const score = scoreCluster(bestCluster)
+  if (score === -Infinity) {
+    return { user: USER_NOT_FOUND, score: -Infinity }
+  }
 
   const center = clusterCentroid(bestCluster)
 
   return {
-    isUserFound: true,
-    location: center,
-    radius: clusterRadius(bestCluster, center),
+    user: {
+      isUserFound: true,
+      location: center,
+      radius: clusterRadius(bestCluster, center),
+    },
+    score,
   }
 }
 
@@ -429,28 +476,6 @@ export function detectUser(
 ): User {
   const { width, height, data } = imageData
   const lastLocation = options.lastLocation
-
-  const isBlue = new Array(width * height).fill(false)
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const offset = (y * width + x) * 4
-      isBlue[y * width + x] = isPlayerBlue(
-        data[offset],
-        data[offset + 1],
-        data[offset + 2],
-      )
-    }
-  }
-
-  const blueUser = detectFromMask(
-    imageData,
-    isBlue,
-    MIN_BLUE_CLUSTER_SIZE,
-    MAX_BLUE_CLUSTER_SIZE,
-    (cluster) => clusterBlueScore(cluster, width, data),
-    lastLocation,
-  )
-  if (blueUser.isUserFound) return blueUser
 
   const isYellow = new Array(width * height).fill(false)
 
@@ -465,30 +490,47 @@ export function detectUser(
     }
   }
 
-  const clusters = findClusters(width, height, isYellow)
-  if (clusters.length === 0) return USER_NOT_FOUND
-
-  const bestCluster = pickBestCluster(
-    clusters,
-    width,
-    height,
+  const yellowResult = detectFromMask(
+    imageData,
+    isYellow,
+    MIN_CLUSTER_SIZE,
+    MAX_YELLOW_CLUSTER_SIZE,
     (cluster) => clusterScore(cluster, width, data),
     lastLocation,
   )
-  if (!bestCluster) return USER_NOT_FOUND
 
-  if (clusterScore(bestCluster, width, data) === -Infinity) return USER_NOT_FOUND
-
-  const center = clusterCentroid(bestCluster)
-
-  return {
-    isUserFound: true,
-    location: {
-      x: center.x,
-      y: center.y,
-    },
-    radius: clusterRadius(bestCluster, center),
+  const isBlue = new Array(width * height).fill(false)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const offset = (y * width + x) * 4
+      isBlue[y * width + x] = isPlayerBlue(
+        data[offset],
+        data[offset + 1],
+        data[offset + 2],
+      )
+    }
   }
+
+  const blueResult = detectFromMask(
+    imageData,
+    isBlue,
+    MIN_BLUE_CLUSTER_SIZE,
+    MAX_BLUE_CLUSTER_SIZE,
+    (cluster) => clusterBlueScore(cluster, width, data),
+    lastLocation,
+  )
+
+  if (yellowResult.user.isUserFound && blueResult.user.isUserFound) {
+    // MSW self marker is usually the bright yellow plus; blue dots are often other players.
+    return yellowResult.score >= blueResult.score * 0.85
+      ? yellowResult.user
+      : blueResult.user
+  }
+
+  if (yellowResult.user.isUserFound) return yellowResult.user
+  if (blueResult.user.isUserFound) return blueResult.user
+
+  return USER_NOT_FOUND
 }
 
 const USER_COORD_EQUAL_EPSILON = 0.05

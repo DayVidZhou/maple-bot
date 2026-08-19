@@ -39,6 +39,7 @@ export function RoutinesDialog() {
     deleteSelectedMove,
     resetRoutine,
     setRoutineName,
+    setSendDiscordScreenshots,
     setSelectedPointName,
     updatePointPosition,
     updateSelectedMove,
@@ -137,6 +138,16 @@ export function RoutinesDialog() {
                   value={routine.name}
                   onChange={(event) => setRoutineName(event.target.value)}
                 />
+              </label>
+              <label className="routines-checkbox-field">
+                <input
+                  type="checkbox"
+                  checked={routine.sendDiscordScreenshots}
+                  onChange={(event) =>
+                    setSendDiscordScreenshots(event.target.checked)
+                  }
+                />
+                <span>Send Discord screenshots every 30s while running</span>
               </label>
               <h3>Mini Map</h3>
               <FocusRegionView

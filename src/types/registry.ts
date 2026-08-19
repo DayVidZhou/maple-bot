@@ -11,6 +11,8 @@ export interface RoutineListItem {
   id: string
   name: string
   points: RoutinePoint[]
+  /** DM a screenshot every 30s while this routine runs (requires Discord bot). */
+  sendDiscordScreenshots?: boolean
 }
 
 export interface HotkeyListItem {

@@ -138,6 +138,21 @@
   border-color: #4f8cff;
 }
 
+.routines-checkbox-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #9aa0a6;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.routines-checkbox-field input {
+  margin-top: 0.15rem;
+  accent-color: #4f8cff;
+}
+
 .routines-dialog-footer {
   display: flex;
   align-items: center;

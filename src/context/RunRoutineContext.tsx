@@ -56,6 +56,8 @@ interface RunRoutineContextValue {
 
 const RunRoutineContext = createContext<RunRoutineContextValue | null>(null)
 
+const ROUTINE_DISCORD_SCREENSHOT_INTERVAL_MS = 30_000
+
 export function RunRoutineProvider({ children }: { children: ReactNode }) {
   const { routines, hotkeys, selectedRoutineId, selectedHotkeyId } =
     useRegistryContext()
@@ -241,6 +243,71 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
     buffRunnerRef.current = buffRunner
     setBuffStatuses(buffRunner.getSnapshot())
 
+    const trySendDiscordScreenshot = async () => {
+      if (abortRef.current) return
+
+      console.log('[discord] Routine screenshot tick requested', {
+        routine: selectedRoutine.name,
+      })
+
+      if (!window.electronAPI?.sendDiscordScreenshot) {
+        console.warn('[discord] Routine screenshot skipped — Electron API unavailable')
+        logActivity({
+          category: 'system',
+          event: 'Discord screenshot failed',
+          detail: 'Discord is not available',
+        })
+        return
+      }
+
+      try {
+        await window.electronAPI.sendDiscordScreenshot(selectedRoutine.name)
+        console.log('[discord] Routine screenshot sent', {
+          routine: selectedRoutine.name,
+        })
+        logActivity({
+          category: 'system',
+          event: 'Discord screenshot',
+          detail: `Sent · ${selectedRoutine.name}`,
+        })
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : 'Discord screenshot failed'
+        console.error('[discord] Routine screenshot failed', {
+          routine: selectedRoutine.name,
+          error: message,
+          err,
+        })
+        logActivity({
+          category: 'system',
+          event: 'Discord screenshot failed',
+          detail: message,
+        })
+      }
+    }
+
+    let discordScreenshotIntervalId: ReturnType<typeof setInterval> | null =
+      null
+    if (selectedRoutine.sendDiscordScreenshots) {
+      console.log('[discord] Routine screenshots enabled', {
+        routine: selectedRoutine.name,
+        intervalMs: ROUTINE_DISCORD_SCREENSHOT_INTERVAL_MS,
+      })
+      discordScreenshotIntervalId = setInterval(() => {
+        void trySendDiscordScreenshot()
+      }, ROUTINE_DISCORD_SCREENSHOT_INTERVAL_MS)
+      logActivity({
+        category: 'system',
+        event: 'Discord screenshots enabled',
+        detail: 'Every 30s while routine runs',
+      })
+      void trySendDiscordScreenshot()
+    } else {
+      console.log('[discord] Routine screenshots disabled for run', {
+        routine: selectedRoutine.name,
+      })
+    }
+
     try {
       await runRoutineLoop(selectedRoutine, hotkeys, {
         keyboard,
@@ -295,6 +362,10 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
         abortReasonRef.current = null
       }
     } finally {
+      if (discordScreenshotIntervalId) {
+        console.log('[discord] Clearing routine screenshot interval')
+        clearInterval(discordScreenshotIntervalId)
+      }
       await releaseAllHeldKeys()
       abortRef.current = false
       buffRunnerRef.current = null
