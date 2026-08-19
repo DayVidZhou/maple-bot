@@ -27,3 +27,6 @@ release
 
 # Local registry save files (per-user, auto-generated)
 .*-save-file.ts
+.routine-save-file.ts
+.hotkey-save-file.ts
+.minimap-save-file.ts

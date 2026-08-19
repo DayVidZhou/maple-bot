@@ -24,6 +24,16 @@ export const POINT_SIDE_EPSILON = 0.05
 /** Max X movement per poll tick before treating coords as a bad detection frame. */
 export const MAX_RELIABLE_X_STEP = 28
 
+type FacingDirection = 'left' | 'right'
+
+interface FacingState {
+  direction: FacingDirection | null
+}
+
+function createFacingState(): FacingState {
+  return { direction: null }
+}
+
 export class RoutineRunAbortError extends Error {
   constructor(message = 'Routine run stopped') {
     super(message)
@@ -188,6 +198,7 @@ async function moveToPoint(
   deps: RoutineRunnerDeps,
   point: RoutinePoint,
   jumpKey: string,
+  facing: FacingState,
 ): Promise<void> {
   let heldDirection: 'left' | 'right' | null = null
   let lastUserX: number | null = null
@@ -300,6 +311,7 @@ async function moveToPoint(
             )
             await deps.keyboard.pressKey(direction)
             heldDirection = direction
+            facing.direction = direction
             lastUserX = user.x
             lastXChangeTime = Date.now()
           } else {
@@ -369,6 +381,7 @@ async function executeMove(
   move: Move,
   point: RoutinePoint,
   hotkeys: HotkeyListItem[],
+  facing: FacingState,
 ): Promise<void> {
   const user = deps.getUserMinimapCoord()
   const buttonKey = resolveMoveButtonKey(move, hotkeys)
@@ -403,8 +416,11 @@ async function executeMove(
   )
 
   const direction = hasMoveDirection(move.direction) ? move.direction : null
-  if (direction) {
+  let pressedDirection = false
+  if (direction && facing.direction !== direction) {
     await deps.keyboard.pressKey(direction)
+    facing.direction = direction
+    pressedDirection = true
   }
 
   try {
@@ -417,7 +433,7 @@ async function executeMove(
     )
     await deps.keyboard.releaseKey(buttonKey)
   } finally {
-    if (direction) {
+    if (pressedDirection && direction) {
       await deps.keyboard.releaseKey(direction)
     }
   }
@@ -437,6 +453,7 @@ async function executePointMoves(
   deps: RoutineRunnerDeps,
   point: RoutinePoint,
   hotkeys: HotkeyListItem[],
+  facing: FacingState,
 ): Promise<void> {
   for (const move of point.moves) {
     assertRunning(deps)
@@ -444,7 +461,7 @@ async function executePointMoves(
       throw new RoutineRunAbortError('MapleStory Worlds is no longer focused')
     }
 
-    await executeMove(deps, move, point, hotkeys)
+    await executeMove(deps, move, point, hotkeys, facing)
   }
 }
 
@@ -493,6 +510,8 @@ export async function runRoutineLoop(
     await deps.buffRunner.runInitialSequence()
   }
 
+  const facing = createFacingState()
+
   while (true) {
     assertRunning(deps)
     if (!(await deps.isMapleStoryFocused())) {
@@ -526,7 +545,7 @@ export async function runRoutineLoop(
         startUser,
         point,
       )
-      await moveToPoint(deps, point, jumpKey)
+      await moveToPoint(deps, point, jumpKey, facing)
       await tickBuffs(deps)
       const atPointUser = deps.getUserMinimapCoord()
       logRoutineActivityWithPoint(
@@ -539,7 +558,7 @@ export async function runRoutineLoop(
         atPointUser,
         point,
       )
-      await executePointMoves(deps, point, hotkeys)
+      await executePointMoves(deps, point, hotkeys, facing)
     }
   }
 }
