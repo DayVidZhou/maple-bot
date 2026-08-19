@@ -17,6 +17,12 @@ import {
   sendOwnerTestMessageDm,
   getDiscordConnectionStatus,
 } from './discordBot'
+import {
+  loadEnvFile,
+  readDiscordConfigFile,
+  saveDiscordConfig,
+  type DiscordEnvConfig,
+} from './discordConfig'
 import { pressKey, releaseKey, tapKey, typeText } from './keyboard'
 import { createRegistrySaveHandlers } from './registrySave'
 
@@ -29,6 +35,19 @@ const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 
 let mainWindow: BrowserWindow | null = null
 let discordClient: Awaited<ReturnType<typeof startDiscordBot>> = null
+
+async function restartDiscordBot(): Promise<void> {
+  console.log('[discord] Restarting bot after config change')
+  await stopDiscordBot(discordClient)
+  discordClient = null
+  await loadEnvFile()
+  discordClient = await startDiscordBot({
+    getPlatform: () => process.platform,
+  })
+  console.log('[discord] Bot restart finished', {
+    connected: discordClient?.isReady?.() ?? false,
+  })
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -194,6 +213,19 @@ function registerIpcHandlers() {
     const status = getDiscordConnectionStatus()
     console.log('[discord] IPC get-status', status)
     return status
+  })
+
+  ipcMain.handle('discord:get-config', async () => readDiscordConfigFile())
+
+  ipcMain.handle('discord:save-config', async (_event, config: DiscordEnvConfig) => {
+    console.log('[discord] IPC save-config', {
+      hasToken: Boolean(config.token?.trim()),
+      hasClientId: Boolean(config.clientId?.trim()),
+      hasOwnerId: Boolean(config.ownerId?.trim()),
+    })
+    await saveDiscordConfig(config)
+    await restartDiscordBot()
+    return getDiscordConnectionStatus()
   })
 }
 

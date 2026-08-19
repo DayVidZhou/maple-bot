@@ -61,3 +61,38 @@
   font-size: 0.8rem;
   line-height: 1.4;
 }
+
+.discord-setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid #2a2f3d;
+}
+
+.discord-setup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #9aa0a6;
+}
+
+.discord-setup-field input {
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #2a2f3d;
+  border-radius: 6px;
+  background: #0f1117;
+  color: #e8eaed;
+  font-size: 0.85rem;
+}
+
+.discord-setup-field input:focus {
+  outline: none;
+  border-color: #4f8cff;
+}
+
+.discord-setup-actions {
+  display: flex;
+  gap: 0.5rem;
+}

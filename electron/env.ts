@@ -1,20 +1,15 @@
 import dotenv from 'dotenv'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { discordLog, discordWarn } from './discordLog'
+import { ENV_PATH } from './discordConfig'
 
-const appRoot = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..',
-)
-
-const envPath = path.join(appRoot, '.env')
-const envResult = dotenv.config({ path: envPath })
+const envResult = dotenv.config({ path: ENV_PATH, override: true })
 
 if (envResult.error) {
-  discordWarn('No .env file loaded', { envPath, error: envResult.error.message })
-} else {
-  discordLog('Loaded .env', { envPath })
+  discordWarn('Discord not configured yet — use the Discord panel in the app', {
+    envPath: ENV_PATH,
+  })
+} else if (process.env.DISCORD_BOT_TOKEN?.trim()) {
+  discordLog('Loaded .env', { envPath: ENV_PATH })
 }
 
 export function getDiscordConfig() {
@@ -33,3 +28,11 @@ export function logDiscordConfigSummary(context: string) {
     hasOwnerId: Boolean(ownerId),
   })
 }
+
+export {
+  ENV_PATH,
+  loadEnvFile,
+  readDiscordConfigFile,
+  saveDiscordConfig,
+} from './discordConfig'
+export type { DiscordEnvConfig } from './discordConfig'

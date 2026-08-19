@@ -99,7 +99,7 @@ export async function sendOwnerScreenshotDm(
   }
 
   if (!ownerId) {
-    throw new Error('DISCORD_OWNER_ID is not configured')
+    throw new Error('Your Discord User ID is not configured')
   }
 
   const owner = await activeDiscordClient.users.fetch(ownerId)
@@ -136,7 +136,7 @@ export async function sendOwnerTestMessageDm(): Promise<void> {
   }
 
   if (!ownerId) {
-    throw new Error('DISCORD_OWNER_ID is not configured')
+    throw new Error('Your Discord User ID is not configured')
   }
 
   const owner = await activeDiscordClient.users.fetch(ownerId)

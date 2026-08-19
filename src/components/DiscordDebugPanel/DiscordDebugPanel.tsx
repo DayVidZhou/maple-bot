@@ -11,23 +11,29 @@ interface DiscordConnectionStatus {
   hasOwnerId: boolean
 }
 
+interface DiscordConfigForm {
+  token: string
+  clientId: string
+  ownerId: string
+}
+
 function formatConfigStatus(status: DiscordConnectionStatus): string {
   if (!status.enabled) {
-    return 'Discord disabled — set DISCORD_BOT_TOKEN and DISCORD_CLIENT_ID in .env'
+    return 'Not configured — add shared bot credentials and your Discord User ID below'
   }
 
   if (status.connected) {
-    return `Connected as ${status.botTag ?? 'bot'}`
+    return `Connected as ${status.botTag ?? 'bot'} — DMs go to you on this PC`
   }
 
-  return 'Configured but not connected yet'
+  return 'Saved — waiting for bot to connect (restart if this persists)'
 }
 
 function formatConfigChecks(status: DiscordConnectionStatus): string {
   const checks = [
-    status.hasToken ? 'token' : 'missing token',
-    status.hasClientId ? 'client id' : 'missing client id',
-    status.hasOwnerId ? 'owner id' : 'missing owner id',
+    status.hasToken ? 'bot token' : 'missing bot token',
+    status.hasClientId ? 'application id' : 'missing application id',
+    status.hasOwnerId ? 'your user id' : 'missing your user id',
   ]
   return checks.join(' · ')
 }
@@ -35,11 +41,17 @@ function formatConfigChecks(status: DiscordConnectionStatus): string {
 export function DiscordDebugPanel() {
   const { logActivity } = useActivityLogContext()
   const [status, setStatus] = useState<DiscordConnectionStatus | null>(null)
+  const [config, setConfig] = useState<DiscordConfigForm>({
+    token: '',
+    clientId: '',
+    ownerId: '',
+  })
   const [feedback, setFeedback] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busyAction, setBusyAction] = useState<
-    'refresh' | 'message' | 'screenshot' | null
+    'refresh' | 'save' | 'message' | 'screenshot' | null
   >(null)
+  const [showSetup, setShowSetup] = useState(true)
 
   const isAvailable = Boolean(window.electronAPI?.getDiscordStatus)
 
@@ -49,9 +61,16 @@ export function DiscordDebugPanel() {
     console.log('[discord] Refreshing connection status from UI')
     setBusyAction('refresh')
     try {
-      const nextStatus = await window.electronAPI.getDiscordStatus()
+      const [nextStatus, nextConfig] = await Promise.all([
+        window.electronAPI.getDiscordStatus(),
+        window.electronAPI.getDiscordConfig?.() ?? Promise.resolve(null),
+      ])
       console.log('[discord] Connection status from UI', nextStatus)
       setStatus(nextStatus)
+      if (nextConfig) {
+        setConfig(nextConfig)
+        setShowSetup(!nextStatus.enabled || !nextStatus.hasOwnerId)
+      }
       return nextStatus
     } finally {
       setBusyAction(null)
@@ -105,6 +124,35 @@ export function DiscordDebugPanel() {
     [logActivity, refreshStatus],
   )
 
+  const handleSaveConfig = async () => {
+    if (!window.electronAPI?.saveDiscordConfig) {
+      setError('Discord save is not available')
+      return
+    }
+
+    setBusyAction('save')
+    setError(null)
+    setFeedback(null)
+
+    try {
+      const nextStatus = await window.electronAPI.saveDiscordConfig(config)
+      setStatus(nextStatus)
+      setShowSetup(false)
+      setFeedback('Discord settings saved and bot reconnected.')
+      logActivity({
+        category: 'system',
+        event: 'Discord configured',
+        detail: 'Settings saved for this user',
+      })
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to save Discord settings'
+      setError(message)
+    } finally {
+      setBusyAction(null)
+    }
+  }
+
   const handleSendMessage = () => {
     if (!window.electronAPI?.sendDiscordTestMessage) {
       setError('Discord API is not available')
@@ -150,6 +198,13 @@ export function DiscordDebugPanel() {
           <button
             type="button"
             className="btn btn-secondary"
+            onClick={() => setShowSetup((open) => !open)}
+          >
+            {showSetup ? 'Hide setup' : 'Edit setup'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
             onClick={() => void refreshStatus()}
             disabled={busyAction !== null}
           >
@@ -174,25 +229,79 @@ export function DiscordDebugPanel() {
         </div>
       </div>
 
+      {showSetup && (
+        <div className="discord-setup-form">
+          <p className="discord-debug-hint">
+            Everyone uses the same MapleBot app (token + application id from your
+            server admin). Each person sets their own Discord User ID so
+            screenshots go to their DMs only.
+          </p>
+          <label className="discord-setup-field">
+            <span>Bot token (shared)</span>
+            <input
+              type="password"
+              value={config.token}
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  token: event.target.value,
+                }))
+              }
+              placeholder="From Discord Developer Portal → Bot"
+              autoComplete="off"
+            />
+          </label>
+          <label className="discord-setup-field">
+            <span>Application ID (shared)</span>
+            <input
+              type="text"
+              value={config.clientId}
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  clientId: event.target.value,
+                }))
+              }
+              placeholder="General Information → Application ID"
+            />
+          </label>
+          <label className="discord-setup-field">
+            <span>Your Discord User ID (unique per person)</span>
+            <input
+              type="text"
+              value={config.ownerId}
+              onChange={(event) =>
+                setConfig((current) => ({
+                  ...current,
+                  ownerId: event.target.value,
+                }))
+              }
+              placeholder="Right-click your name → Copy User ID"
+            />
+          </label>
+          <div className="discord-setup-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => void handleSaveConfig()}
+              disabled={busyAction !== null}
+            >
+              {busyAction === 'save' ? 'Saving…' : 'Save & connect'}
+            </button>
+          </div>
+          <p className="discord-debug-hint">
+            One-time: join a server that has MapleBot, open a DM with the bot,
+            then run Send test message. Enable “Send Discord screenshots” on a
+            routine to get DMs every 30s while it runs.
+          </p>
+        </div>
+      )}
+
       {(feedback || error) && (
         <div className="discord-debug-feedback">
           {feedback && <span className="discord-debug-success">{feedback}</span>}
           {error && <span className="discord-debug-error">{error}</span>}
         </div>
-      )}
-
-      {status && !status.hasOwnerId && (
-        <p className="discord-debug-hint">
-          Add DISCORD_OWNER_ID to .env and restart the app.
-        </p>
-      )}
-
-      {status?.connected && (
-        <p className="discord-debug-hint">
-          MapleBot must be in a server with you before it can DM you. Invite it
-          via Developer Portal → OAuth2 → URL Generator (scopes: bot +
-          applications.commands).
-        </p>
       )}
     </section>
   )

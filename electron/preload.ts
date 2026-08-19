@@ -34,4 +34,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('discord:send-screenshot', routineName),
   sendDiscordTestMessage: () => ipcRenderer.invoke('discord:send-test-message'),
   getDiscordStatus: () => ipcRenderer.invoke('discord:get-status'),
+  getDiscordConfig: () => ipcRenderer.invoke('discord:get-config'),
+  saveDiscordConfig: (config: {
+    token: string
+    clientId: string
+    ownerId: string
+  }) => ipcRenderer.invoke('discord:save-config', config),
 })

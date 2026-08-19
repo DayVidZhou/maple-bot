@@ -36,6 +36,23 @@ export interface ElectronAPI {
     hasClientId: boolean
     hasOwnerId: boolean
   }>
+  getDiscordConfig: () => Promise<{
+    token: string
+    clientId: string
+    ownerId: string
+  }>
+  saveDiscordConfig: (config: {
+    token: string
+    clientId: string
+    ownerId: string
+  }) => Promise<{
+    enabled: boolean
+    connected: boolean
+    botTag: string | null
+    hasToken: boolean
+    hasClientId: boolean
+    hasOwnerId: boolean
+  }>
 }
 
 declare global {
