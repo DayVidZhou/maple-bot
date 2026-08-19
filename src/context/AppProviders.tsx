@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { ActivityLogProvider } from './ActivityLogContext'
 import { ElectronAppsProvider } from './ElectronAppsContext'
 import { FocusRegionProvider } from './FocusRegionContext'
+import { PlatformProvider } from './PlatformContext'
 import { RegistryProvider } from './RegistryContext'
 import { HotkeyProvider } from './HotkeyContext'
 import { RoutineProvider } from './RoutineContext'
@@ -10,20 +11,22 @@ import { ScreenCaptureProvider } from './ScreenCaptureContext'
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
-    <ScreenCaptureProvider>
-      <ElectronAppsProvider>
-        <RegistryProvider>
-          <FocusRegionProvider>
-            <ActivityLogProvider>
-              <HotkeyProvider>
-                <RoutineProvider>
-                  <RunRoutineProvider>{children}</RunRoutineProvider>
-                </RoutineProvider>
-              </HotkeyProvider>
-            </ActivityLogProvider>
-          </FocusRegionProvider>
-        </RegistryProvider>
-      </ElectronAppsProvider>
-    </ScreenCaptureProvider>
+    <PlatformProvider>
+      <ScreenCaptureProvider>
+        <ElectronAppsProvider>
+          <RegistryProvider>
+            <FocusRegionProvider>
+              <ActivityLogProvider>
+                <HotkeyProvider>
+                  <RoutineProvider>
+                    <RunRoutineProvider>{children}</RunRoutineProvider>
+                  </RoutineProvider>
+                </HotkeyProvider>
+              </ActivityLogProvider>
+            </FocusRegionProvider>
+          </RegistryProvider>
+        </ElectronAppsProvider>
+      </ScreenCaptureProvider>
+    </PlatformProvider>
   )
 }

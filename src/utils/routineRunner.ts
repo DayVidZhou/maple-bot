@@ -16,11 +16,13 @@ import { pointToMinimapCoord } from './userCoords'
 
 export const ROUTINE_POLL_INTERVAL_MS = 50
 export const STUCK_X_THRESHOLD_MS = 500
-export const USER_LOCATION_LOG_INTERVAL_MS = 200
-export const USER_LOCATION_LOG_MIN_GAP_MS = 100
+export const USER_LOCATION_LOG_INTERVAL_MS = 500
+export const USER_LOCATION_LOG_MIN_GAP_MS = 500
 /** Minimap pixels — sub-pixel coords from user detection. */
 export const USER_LOCATION_MOVE_EPSILON = 0.5
 export const POINT_SIDE_EPSILON = 0.05
+/** Max X movement per poll tick before treating coords as a bad detection frame. */
+export const MAX_RELIABLE_X_STEP = 28
 
 export class RoutineRunAbortError extends Error {
   constructor(message = 'Routine run stopped') {
@@ -189,6 +191,7 @@ async function moveToPoint(
 ): Promise<void> {
   let heldDirection: 'left' | 'right' | null = null
   let lastUserX: number | null = null
+  let lastReliableUserX: number | null = null
   let lastXChangeTime = Date.now()
   let lastSideOfPoint: -1 | 1 | null = null
   const logUserLocation = createUserLocationLogger(deps, point)
@@ -240,82 +243,93 @@ async function moveToPoint(
         return
       }
 
-      const currentSide = sideOfPoint(user.x, pointMinimap.x)
-      if (
-        lastSideOfPoint !== null &&
-        currentSide !== 0 &&
-        currentSide !== lastSideOfPoint
-      ) {
-        logRoutineActivity(
-          deps,
-          {
-            category: 'routine',
-            event: 'Overshot point',
-            detail: appendCoordDelta(
-              `${point.name} · crossed X`,
-              user,
-              pointMinimap,
-            ),
-          },
-          user,
-          pointMinimap,
-          point.name,
-        )
-      }
-      if (currentSide !== 0) {
-        lastSideOfPoint = currentSide
-      }
+      const xStep =
+        lastReliableUserX !== null
+          ? Math.abs(user.x - lastReliableUserX)
+          : 0
+      const isReliableFrame =
+        lastReliableUserX === null || xStep <= MAX_RELIABLE_X_STEP
 
-      const direction = movementDirection(user.x, pointMinimap.x)
-
-      if (direction !== heldDirection) {
-        if (heldDirection) {
-          await deps.keyboard.releaseKey(heldDirection)
-          heldDirection = null
-        }
-
-        if (direction) {
+      if (isReliableFrame) {
+        const currentSide = sideOfPoint(user.x, pointMinimap.x)
+        if (
+          lastSideOfPoint !== null &&
+          currentSide !== 0 &&
+          currentSide !== lastSideOfPoint
+        ) {
           logRoutineActivity(
             deps,
             {
               category: 'routine',
-              event: 'Change direction',
-              key: direction,
-              detail: appendCoordDelta(point.name, user, pointMinimap),
+              event: 'Overshot point',
+              detail: appendCoordDelta(
+                `${point.name} · crossed X`,
+                user,
+                pointMinimap,
+              ),
             },
             user,
             pointMinimap,
             point.name,
           )
-          await deps.keyboard.pressKey(direction)
-          heldDirection = direction
-          lastUserX = user.x
-          lastXChangeTime = Date.now()
-        } else {
-          lastUserX = user.x
-          lastXChangeTime = Date.now()
         }
-      }
+        if (currentSide !== 0) {
+          lastSideOfPoint = currentSide
+        }
 
-      if (heldDirection && lastUserX !== null) {
-        if (Math.abs(user.x - lastUserX) >= USER_LOCATION_MOVE_EPSILON) {
-          lastUserX = user.x
-          lastXChangeTime = Date.now()
-        } else if (Date.now() - lastXChangeTime >= STUCK_X_THRESHOLD_MS) {
-          logRoutineActivity(
-            deps,
-            {
-              category: 'routine',
-              event: 'Stuck — jump',
-              key: jumpKey,
-              detail: `While moving to ${point.name}`,
-            },
-            user,
-            pointMinimap,
-          )
-          await deps.keyboard.tapKey(jumpKey)
-          lastXChangeTime = Date.now()
+        const direction = movementDirection(user.x, pointMinimap.x)
+
+        if (direction !== heldDirection) {
+          if (heldDirection) {
+            await deps.keyboard.releaseKey(heldDirection)
+            heldDirection = null
+          }
+
+          if (direction) {
+            logRoutineActivity(
+              deps,
+              {
+                category: 'routine',
+                event: 'Change direction',
+                key: direction,
+                detail: appendCoordDelta(point.name, user, pointMinimap),
+              },
+              user,
+              pointMinimap,
+              point.name,
+            )
+            await deps.keyboard.pressKey(direction)
+            heldDirection = direction
+            lastUserX = user.x
+            lastXChangeTime = Date.now()
+          } else {
+            lastUserX = user.x
+            lastXChangeTime = Date.now()
+          }
         }
+
+        if (heldDirection && lastUserX !== null) {
+          if (Math.abs(user.x - lastUserX) >= USER_LOCATION_MOVE_EPSILON) {
+            lastUserX = user.x
+            lastXChangeTime = Date.now()
+          } else if (Date.now() - lastXChangeTime >= STUCK_X_THRESHOLD_MS) {
+            logRoutineActivity(
+              deps,
+              {
+                category: 'routine',
+                event: 'Stuck — jump',
+                key: jumpKey,
+                detail: `While moving to ${point.name}`,
+              },
+              user,
+              pointMinimap,
+            )
+            await deps.keyboard.tapKey(jumpKey)
+            lastXChangeTime = Date.now()
+          }
+        }
+
+        lastReliableUserX = user.x
       }
 
       deps.onStatus?.(`Moving to ${point.name}...`)

@@ -1,6 +1,7 @@
 import type { HotkeyListItem, MinimapProfileListItem, RoutineListItem } from './registry'
 
 export interface ElectronAPI {
+  getPlatform: () => NodeJS.Platform
   listOpenApplications: () => Promise<string[]>
   focusApplication: (name: string) => Promise<void>
   focusMapleStoryWorlds: () => Promise<void>

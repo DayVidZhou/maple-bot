@@ -32,7 +32,7 @@
 }
 
 .activity-log-table-wrap {
-  max-height: 220px;
+  max-height: 380px;
   overflow: auto;
   border: 1px solid #2a2f3d;
   border-radius: 8px;

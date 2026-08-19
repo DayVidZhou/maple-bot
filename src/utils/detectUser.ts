@@ -20,6 +20,43 @@ const TEMPLATE_SIZE = MARKER_TEMPLATE.length
 const MIN_CLUSTER_SIZE = 8
 const MAX_CLUSTER_SIZE = 500
 const IDEAL_CLUSTER_SIZE = 50
+/** Top band of the MSW mini-map crop — title, location text, and map thumbnail. */
+const MINIMAP_CHROME_TOP_FRACTION = 0.26
+/** Top-left thumbnail sits below the title but above the playable map area. */
+const MINIMAP_THUMBNAIL_MAX_X_FRACTION = 0.42
+const MINIMAP_THUMBNAIL_MAX_Y_FRACTION = 0.38
+/** Ignore implausible jumps between frames (minimap pixels). */
+const MAX_TRACK_JUMP_FRACTION = 0.35
+/** Reject a new detection when it jumps farther than this from the last good lock. */
+const MAX_STABLE_JUMP_FRACTION = 0.18
+const MIN_BLUE_CLUSTER_SIZE = 6
+const MAX_BLUE_CLUSTER_SIZE = 140
+const IDEAL_BLUE_CLUSTER_SIZE = 28
+
+export interface DetectUserOptions {
+  lastLocation?: Coordinates | null
+}
+
+function isInMinimapChrome(
+  centroid: Coordinates,
+  width: number,
+  height: number,
+): boolean {
+  if (width <= 0 || height <= 0) return false
+
+  const xFrac = centroid.x / width
+  const yFrac = centroid.y / height
+
+  if (yFrac < MINIMAP_CHROME_TOP_FRACTION) return true
+  if (
+    yFrac < MINIMAP_THUMBNAIL_MAX_Y_FRACTION &&
+    xFrac < MINIMAP_THUMBNAIL_MAX_X_FRACTION
+  ) {
+    return true
+  }
+
+  return false
+}
 
 function isDarkBackground(r: number, g: number, b: number): boolean {
   const brightness = Math.max(r, g, b)
@@ -57,10 +94,25 @@ function isMarkerCore(r: number, g: number, b: number): boolean {
   return r >= 235 && g >= 235 && b >= 70 && b <= 130 && Math.abs(r - g) <= 20
 }
 
+function isPlayerBlue(r: number, g: number, b: number): boolean {
+  if (isDarkBackground(r, g, b) || isBrownGround(r, g, b)) return false
+  // MSW minimap player icon — bright blue circle (not teal water/sharks).
+  return (
+    b >= 155 &&
+    r <= 115 &&
+    g <= 185 &&
+    b > r + 45 &&
+    b > g + 12 &&
+    r + g > 90
+  )
+}
+
 function findClusters(
   width: number,
   height: number,
-  isYellow: boolean[],
+  mask: boolean[],
+  minSize = MIN_CLUSTER_SIZE,
+  maxSize = MAX_CLUSTER_SIZE,
 ): Coordinates[][] {
   const visited = new Array(width * height).fill(false)
   const clusters: Coordinates[][] = []
@@ -69,7 +121,7 @@ function findClusters(
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const i = index(x, y)
-      if (visited[i] || !isYellow[i]) continue
+      if (visited[i] || !mask[i]) continue
 
       const cluster: Coordinates[] = []
       const stack: Coordinates[] = [{ x, y }]
@@ -79,7 +131,7 @@ function findClusters(
         if (!point) continue
 
         const pointIndex = index(point.x, point.y)
-        if (visited[pointIndex] || !isYellow[pointIndex]) continue
+        if (visited[pointIndex] || !mask[pointIndex]) continue
 
         visited[pointIndex] = true
         cluster.push(point)
@@ -97,10 +149,7 @@ function findClusters(
         }
       }
 
-      if (
-        cluster.length >= MIN_CLUSTER_SIZE &&
-        cluster.length <= MAX_CLUSTER_SIZE
-      ) {
+      if (cluster.length >= minSize && cluster.length <= maxSize) {
         clusters.push(cluster)
       }
     }
@@ -231,8 +280,178 @@ function clusterScore(
   )
 }
 
-export function detectUser(imageData: ImageData): User {
+function clusterBlueScore(
+  cluster: Coordinates[],
+  width: number,
+  data: Uint8ClampedArray,
+): number {
+  let blueScore = 0
+  let bluePixels = 0
+
+  for (const point of cluster) {
+    const offset = (point.y * width + point.x) * 4
+    const r = data[offset]
+    const g = data[offset + 1]
+    const b = data[offset + 2]
+
+    if (!isPlayerBlue(r, g, b)) continue
+
+    bluePixels += 1
+    blueScore += b - r * 0.45
+  }
+
+  if (bluePixels < 5) return -Infinity
+
+  const fillRatio = bluePixels / cluster.length
+  if (fillRatio < 0.55) return -Infinity
+
+  const sizePenalty = Math.abs(cluster.length - IDEAL_BLUE_CLUSTER_SIZE) * 1.1
+  return blueScore / cluster.length + fillRatio * 45 - sizePenalty
+}
+
+function pickBestCluster(
+  clusters: Coordinates[][],
+  width: number,
+  height: number,
+  scoreCluster: (cluster: Coordinates[]) => number,
+  lastLocation: Coordinates | null | undefined,
+): Coordinates[] | null {
+  const eligible = clusters.filter((cluster) => {
+    const center = clusterCentroid(cluster)
+    return !isInMinimapChrome(center, width, height)
+  })
+
+  if (eligible.length === 0) return null
+
+  const scored = eligible
+    .map((cluster) => ({
+      cluster,
+      center: clusterCentroid(cluster),
+      score: scoreCluster(cluster),
+    }))
+    .filter((entry) => entry.score > -Infinity)
+
+  if (scored.length === 0) return null
+
+  if (lastLocation) {
+    const maxJump = Math.max(width, height) * MAX_TRACK_JUMP_FRACTION
+    const nearLast = scored
+      .filter(
+        (entry) =>
+          Math.hypot(
+            entry.center.x - lastLocation.x,
+            entry.center.y - lastLocation.y,
+          ) <= maxJump,
+      )
+      .sort((a, b) => {
+        const distA = Math.hypot(
+          a.center.x - lastLocation.x,
+          a.center.y - lastLocation.y,
+        )
+        const distB = Math.hypot(
+          b.center.x - lastLocation.x,
+          b.center.y - lastLocation.y,
+        )
+        if (Math.abs(distA - distB) > 5) return distA - distB
+        return b.score - a.score
+      })
+
+    if (nearLast.length > 0) return nearLast[0].cluster
+  }
+
+  return scored.reduce((best, entry) =>
+    entry.score > best.score ? entry : best,
+  ).cluster
+}
+
+export function stabilizeUserDetection(
+  detected: User,
+  last: User,
+  cropWidth: number,
+  cropHeight: number,
+): User {
+  if (!detected.isUserFound) return detected
+  if (!last.isUserFound) return detected
+
+  const jump = Math.hypot(
+    detected.location.x - last.location.x,
+    detected.location.y - last.location.y,
+  )
+  const maxJump =
+    Math.max(cropWidth, cropHeight) * MAX_STABLE_JUMP_FRACTION
+
+  if (jump > maxJump) return last
+  return detected
+}
+
+function detectFromMask(
+  imageData: ImageData,
+  mask: boolean[],
+  minClusterSize: number,
+  maxClusterSize: number,
+  scoreCluster: (cluster: Coordinates[]) => number,
+  lastLocation: Coordinates | null | undefined,
+): User {
+  const { width, height } = imageData
+  const clusters = findClusters(
+    width,
+    height,
+    mask,
+    minClusterSize,
+    maxClusterSize,
+  )
+
+  if (clusters.length === 0) return USER_NOT_FOUND
+
+  const bestCluster = pickBestCluster(
+    clusters,
+    width,
+    height,
+    scoreCluster,
+    lastLocation,
+  )
+  if (!bestCluster) return USER_NOT_FOUND
+
+  if (scoreCluster(bestCluster) === -Infinity) return USER_NOT_FOUND
+
+  const center = clusterCentroid(bestCluster)
+
+  return {
+    isUserFound: true,
+    location: center,
+    radius: clusterRadius(bestCluster, center),
+  }
+}
+
+export function detectUser(
+  imageData: ImageData,
+  options: DetectUserOptions = {},
+): User {
   const { width, height, data } = imageData
+  const lastLocation = options.lastLocation
+
+  const isBlue = new Array(width * height).fill(false)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const offset = (y * width + x) * 4
+      isBlue[y * width + x] = isPlayerBlue(
+        data[offset],
+        data[offset + 1],
+        data[offset + 2],
+      )
+    }
+  }
+
+  const blueUser = detectFromMask(
+    imageData,
+    isBlue,
+    MIN_BLUE_CLUSTER_SIZE,
+    MAX_BLUE_CLUSTER_SIZE,
+    (cluster) => clusterBlueScore(cluster, width, data),
+    lastLocation,
+  )
+  if (blueUser.isUserFound) return blueUser
+
   const isYellow = new Array(width * height).fill(false)
 
   for (let y = 0; y < height; y++) {
@@ -249,11 +468,14 @@ export function detectUser(imageData: ImageData): User {
   const clusters = findClusters(width, height, isYellow)
   if (clusters.length === 0) return USER_NOT_FOUND
 
-  const bestCluster = clusters.reduce((best, cluster) =>
-    clusterScore(cluster, width, data) > clusterScore(best, width, data)
-      ? cluster
-      : best,
+  const bestCluster = pickBestCluster(
+    clusters,
+    width,
+    height,
+    (cluster) => clusterScore(cluster, width, data),
+    lastLocation,
   )
+  if (!bestCluster) return USER_NOT_FOUND
 
   if (clusterScore(bestCluster, width, data) === -Infinity) return USER_NOT_FOUND
 

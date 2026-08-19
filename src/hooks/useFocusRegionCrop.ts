@@ -3,7 +3,7 @@ import type { FocusRegionSize } from '../types/focusRegion'
 import type { RoutinePoint } from '../types/routine'
 import type { User } from '../types/user'
 import { USER_NOT_FOUND } from '../types/user'
-import { detectUser, usersEqual } from '../utils/detectUser'
+import { detectUser, stabilizeUserDetection, usersEqual } from '../utils/detectUser'
 import { ROUTINE_POLL_INTERVAL_MS } from '../utils/routineRunner'
 import {
   normalizedToCanvasCoord,
@@ -104,7 +104,17 @@ export function useFocusRegionCrop(
       ctx.drawImage(video, 0, 0, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight)
 
       const imageData = ctx.getImageData(0, 0, cropWidth, cropHeight)
-      const detectedUser = detectUser(imageData)
+      const rawDetection = detectUser(imageData, {
+        lastLocation: lastUserRef.current.isUserFound
+          ? lastUserRef.current.location
+          : null,
+      })
+      const detectedUser = stabilizeUserDetection(
+        rawDetection,
+        lastUserRef.current,
+        cropWidth,
+        cropHeight,
+      )
 
       if (detectedUser.isUserFound && detectedUser.radius != null) {
         const circleRadius = detectedUser.radius * CHARACTER_CIRCLE_RADIUS_SCALE
