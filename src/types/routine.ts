@@ -49,7 +49,6 @@ export interface RoutinePoint extends Coordinates {
 export interface Routine {
   id: string
   name: string
-  hotkeyProfileId: string | null
   points: RoutinePoint[]
 }
 
@@ -121,7 +120,6 @@ export function normalizeRoutineListItem(item: {
 }): {
   id: string
   name: string
-  hotkeyProfileId: string | null
   points: RoutinePoint[]
 } {
   const legacyMoves = (item.moves ?? []).map(normalizeMove)
@@ -129,7 +127,6 @@ export function normalizeRoutineListItem(item: {
   return {
     id: item.id,
     name: item.name,
-    hotkeyProfileId: item.hotkeyProfileId ?? null,
     points: (item.points ?? []).map((point, index) => ({
       ...normalizeRoutinePoint(point, legacyMoves),
       name: point.name ?? defaultPointName(index),

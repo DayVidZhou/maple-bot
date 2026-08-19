@@ -16,7 +16,7 @@ export function BuffStatusTable({
   hotkeyProfileName,
   isRunning,
 }: BuffStatusTableProps) {
-  const profileLabel = hotkeyProfileName ?? 'No hotkey profile linked'
+  const profileLabel = hotkeyProfileName ?? 'No hotkey profile selected in sidebar'
 
   return (
     <div className="buff-status">
@@ -25,7 +25,7 @@ export function BuffStatusTable({
           <h3>Buffs</h3>
           <p className="buff-status-subtitle">
             {profileLabel}
-            {isRunning ? ' · live during run' : ' · from routine hotkey profile'}
+            {isRunning ? ' · live during run' : ' · from sidebar hotkey profile'}
           </p>
         </div>
       </div>
@@ -45,7 +45,7 @@ export function BuffStatusTable({
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={5} className="buff-status-empty">
-                  Link a hotkey profile to the routine to show buffs here.
+                  Link a hotkey profile in the sidebar to show buffs here.
                 </td>
               </tr>
             ) : (

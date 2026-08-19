@@ -10,7 +10,6 @@ export interface MinimapProfileListItem extends FocusRegionSize {
 export interface RoutineListItem {
   id: string
   name: string
-  hotkeyProfileId?: string | null
   points: RoutinePoint[]
 }
 

@@ -94,11 +94,11 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
       hotkeys: HotkeyListItem[]
       minimapProfiles: MinimapProfileListItem[]
     }) => {
-      const loadedRoutines = data.routines.map((routine) =>
-        normalizeRoutineListItem(routine),
-      )
       const loadedHotkeys = data.hotkeys.map((hotkey) =>
         normalizeHotkeyListItem(hotkey),
+      )
+      const loadedRoutines = data.routines.map((routine) =>
+        normalizeRoutineListItem(routine),
       )
 
       setRoutines(loadedRoutines)
@@ -153,7 +153,6 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
     const item: RoutineListItem = {
       id: createId(),
       name: trimmed,
-      hotkeyProfileId: routine.hotkeyProfileId,
       points: routine.points,
     }
     setRoutines((current) => [...current, item])
@@ -171,7 +170,6 @@ export function RegistryProvider({ children }: { children: ReactNode }) {
             ? {
                 ...item,
                 name: trimmed,
-                hotkeyProfileId: routine.hotkeyProfileId,
                 points: routine.points,
               }
             : item,

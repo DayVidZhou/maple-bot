@@ -38,6 +38,14 @@ export function resolveHotkeyProfile(
   return hotkeys.find((hotkey) => hotkey.id === profileId) ?? null
 }
 
+function findJumpAction(profile: HotkeyListItem): HotkeyActionEntry | null {
+  return (
+    profile.moves.find(
+      (entry) => entry.name.trim().toLowerCase() === 'jump',
+    ) ?? null
+  )
+}
+
 export function resolveJumpKey(
   hotkeys: HotkeyListItem[],
   profileId: string | null,
@@ -45,13 +53,33 @@ export function resolveJumpKey(
   const profile = resolveHotkeyProfile(hotkeys, profileId)
   if (!profile) return null
 
-  const jump = profile.moves.find(
-    (entry) => entry.name.trim().toLowerCase() === 'jump',
-  )
+  const jump = findJumpAction(profile)
   return jump?.buttonKey?.trim() || null
 }
 
-export function resolveRoutineBuffs(
+export function describeJumpKeyError(
+  hotkeys: HotkeyListItem[],
+  profileId: string | null,
+): string {
+  const profile = resolveHotkeyProfile(hotkeys, profileId)
+
+  if (!profile) {
+    return 'Select a hotkey profile in the sidebar and configure Jump.'
+  }
+
+  const jump = findJumpAction(profile)
+  if (!jump) {
+    return `Hotkey profile "${profile.name}" is missing a Jump action.`
+  }
+
+  if (!jump.buttonKey?.trim()) {
+    return `Set a button key for Jump in hotkey profile "${profile.name}" and save.`
+  }
+
+  return 'Configure a Jump key in the selected hotkey profile.'
+}
+
+export function resolveProfileBuffs(
   hotkeys: HotkeyListItem[],
   profileId: string | null,
 ): HotkeyActionEntry[] {

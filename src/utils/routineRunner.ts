@@ -6,10 +6,11 @@ import { formatMoveDirectionLabel, hasMoveDirection } from '../types/routine'
 import type { BuffRunner } from './buffRunner'
 import { ROUTINE_POINT_HIT_RADIUS } from './focusRegionCoords'
 import {
+  describeJumpKeyError,
   resolveJumpKey,
   resolveMoveAction,
   resolveMoveButtonKey,
-  resolveRoutineBuffs,
+  resolveProfileBuffs,
 } from './resolveHotkeyAction'
 import { activityLogPositions, appendCoordDelta } from './activityLogCoords'
 import { pointToMinimapCoord } from './userCoords'
@@ -54,6 +55,8 @@ export interface RoutineRunnerDeps {
   getUserMinimapCoord(): Coordinates | null
   getCropSize(): { width: number; height: number } | null
   shouldAbort(): boolean
+  /** Hotkey profile selected in the main sidebar. */
+  activeHotkeyProfileId?: string | null
   buffRunner?: BuffRunner | null
   onStatus?(message: string): void
   onPointIndexChange?(index: number): void
@@ -474,9 +477,11 @@ export async function runRoutineLoop(
     throw new Error('Routine has no points')
   }
 
-  const jumpKey = resolveJumpKey(hotkeys, routine.hotkeyProfileId ?? null)
+  const jumpKey = resolveJumpKey(hotkeys, deps.activeHotkeyProfileId ?? null)
   if (!jumpKey) {
-    throw new Error('Configure a Jump key in the routine hotkey profile')
+    throw new Error(
+      describeJumpKeyError(hotkeys, deps.activeHotkeyProfileId ?? null),
+    )
   }
 
   await deps.focusMapleStory()
@@ -505,7 +510,10 @@ export async function runRoutineLoop(
     detail: routine.name,
   })
 
-  const buffEntries = resolveRoutineBuffs(hotkeys, routine.hotkeyProfileId ?? null)
+  const buffEntries = resolveProfileBuffs(
+    hotkeys,
+    deps.activeHotkeyProfileId ?? null,
+  )
   if (deps.buffRunner && buffEntries.length > 0) {
     await deps.buffRunner.runInitialSequence()
   }

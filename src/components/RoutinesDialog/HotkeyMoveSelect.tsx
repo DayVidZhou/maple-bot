@@ -80,7 +80,7 @@ export function HotkeyMoveSelect({
   if (!profileId) {
     return (
       <p className="routines-hint hotkey-move-select-empty">
-        Select a hotkey profile to add moves.
+        Select a hotkey profile in the sidebar to add moves.
       </p>
     )
   }
@@ -182,49 +182,6 @@ export function formatRoutineMoveLabel(
       : ''
 
   return `${baseLabel}${duplicateSuffix} · ${buttonKey} · ${move.holdDurationSeconds}s · ${directionLabel}`
-}
-
-interface HotkeyProfileSelectProps {
-  hotkeys: HotkeyListItem[]
-  profileId: string | null
-  onChange: (profileId: string | null) => void
-  disabled?: boolean
-}
-
-export function HotkeyProfileSelect({
-  hotkeys,
-  profileId,
-  onChange,
-  disabled = false,
-}: HotkeyProfileSelectProps) {
-  if (hotkeys.length === 0) {
-    return (
-      <p className="routines-hint hotkey-move-select-empty">
-        Create a hotkey profile in the sidebar first.
-      </p>
-    )
-  }
-
-  return (
-    <label className="routines-name-field hotkey-profile-select">
-      <span>Hotkey profile</span>
-      <select
-        value={profileId ?? ''}
-        onChange={(event) =>
-          onChange(event.target.value ? event.target.value : null)
-        }
-        className="hotkey-move-select-input hotkey-profile-select-input"
-        disabled={disabled}
-      >
-        <option value="">Select profile…</option>
-        {hotkeys.map((hotkey) => (
-          <option key={hotkey.id} value={hotkey.id}>
-            {hotkey.name}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
 }
 
 export function filterMovesForProfile(

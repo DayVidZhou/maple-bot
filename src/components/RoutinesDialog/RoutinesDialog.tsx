@@ -1,5 +1,5 @@
 import * as Dialog from '@radix-ui/react-dialog'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useFocusRegionContext } from '../../context/FocusRegionContext'
 import { useRegistryContext } from '../../context/RegistryContext'
 import { useRoutineContext } from '../../context/RoutineContext'
@@ -13,18 +13,15 @@ import {
 import type { User } from '../../types/user'
 import { USER_NOT_FOUND } from '../../types/user'
 import { FocusRegionView } from '../FocusRegionView/FocusRegionView'
-import {
-  formatRoutineMoveLabel,
-  HotkeyMoveSelect,
-  HotkeyProfileSelect,
-} from './HotkeyMoveSelect'
+import { formatRoutineMoveLabel, HotkeyMoveSelect } from './HotkeyMoveSelect'
 import { SelectedMoveFields } from './SelectedMoveFields'
 import './RoutinesDialog.css'
 
 export function RoutinesDialog() {
   const { isCapturing, videoRef } = useScreenCaptureContext()
   const { focusSize } = useFocusRegionContext()
-  const { addRoutine, updateRoutine, hotkeys } = useRegistryContext()
+  const { addRoutine, updateRoutine, hotkeys, selectedHotkeyId } =
+    useRegistryContext()
   const {
     routinesOpen,
     setRoutinesOpen,
@@ -43,7 +40,6 @@ export function RoutinesDialog() {
     resetRoutine,
     setRoutineName,
     setSelectedPointName,
-    setHotkeyProfileId,
     updatePointPosition,
     updateSelectedMove,
     markDraftSaved,
@@ -53,15 +49,15 @@ export function RoutinesDialog() {
   const [user, setUser] = useState<User>(USER_NOT_FOUND)
   const [cropSize, setCropSize] = useState<MinimapCropSize | null>(null)
 
+  const activeHotkeyProfile = useMemo(
+    () => hotkeys.find((hotkey) => hotkey.id === selectedHotkeyId) ?? null,
+    [hotkeys, selectedHotkeyId],
+  )
+
   const pointMoves = useMemo(
     () => selectedPoint?.moves ?? [],
     [selectedPoint],
   )
-
-  useEffect(() => {
-    if (!routinesOpen || routine.hotkeyProfileId || hotkeys.length === 0) return
-    setHotkeyProfileId(hotkeys[0].id)
-  }, [routinesOpen, routine.hotkeyProfileId, hotkeys, setHotkeyProfileId])
 
   const canSave = routine.points.length >= 1
 
@@ -240,20 +236,19 @@ export function RoutinesDialog() {
                   Select a point to add and edit its moves.
                 </p>
               )}
-              <HotkeyProfileSelect
-                hotkeys={hotkeys}
-                profileId={routine.hotkeyProfileId}
-                onChange={setHotkeyProfileId}
-                disabled={!selectedPointId}
-              />
+              <p className="routines-hint routines-moves-point-label">
+                {activeHotkeyProfile
+                  ? `Using hotkey profile "${activeHotkeyProfile.name}" from the sidebar.`
+                  : 'Select a hotkey profile in the sidebar to add moves.'}
+              </p>
               <ul className="routines-list">
                 {!selectedPoint ? (
                   <li className="routines-list-empty">Select a point first</li>
                 ) : pointMoves.length === 0 ? (
                   <li className="routines-list-empty">
-                    {routine.hotkeyProfileId
+                    {selectedHotkeyId
                       ? 'No moves for this point yet'
-                      : 'Select a hotkey profile to add moves'}
+                      : 'Select a hotkey profile in the sidebar to add moves'}
                   </li>
                 ) : (
                   pointMoves.map((move) => (
@@ -268,7 +263,7 @@ export function RoutinesDialog() {
                         {formatRoutineMoveLabel(
                           move,
                           hotkeys,
-                          routine.hotkeyProfileId,
+                          selectedHotkeyId,
                           pointMoves,
                         )}
                       </button>
@@ -279,7 +274,7 @@ export function RoutinesDialog() {
 
               <HotkeyMoveSelect
                 hotkeys={hotkeys}
-                profileId={routine.hotkeyProfileId}
+                profileId={selectedHotkeyId}
                 onAdd={addMove}
                 disabled={!selectedPointId}
               />

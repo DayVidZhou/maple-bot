@@ -23,7 +23,7 @@ import {
   type RoutineRunnerKeyboard,
 } from '../utils/routineRunner'
 import { BuffRunner } from '../utils/buffRunner'
-import { resolveRoutineBuffs } from '../utils/resolveHotkeyAction'
+import { resolveProfileBuffs } from '../utils/resolveHotkeyAction'
 import { activityLogCoordContextRef, activityLogPositions, appendCoordDelta } from '../utils/activityLogCoords'
 import {
   pointToMinimapCoord,
@@ -57,7 +57,8 @@ interface RunRoutineContextValue {
 const RunRoutineContext = createContext<RunRoutineContextValue | null>(null)
 
 export function RunRoutineProvider({ children }: { children: ReactNode }) {
-  const { routines, hotkeys, selectedRoutineId } = useRegistryContext()
+  const { routines, hotkeys, selectedRoutineId, selectedHotkeyId } =
+    useRegistryContext()
   const { isCapturing } = useScreenCaptureContext()
   const { pressKey, releaseKey, tapKey, isAvailable } = useKeyboard()
   const { logActivity, clearLog } = useActivityLogContext()
@@ -107,9 +108,9 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
   )
 
   const linkedHotkeyProfile = useMemo(() => {
-    if (!selectedRoutine?.hotkeyProfileId) return null
-    return hotkeys.find((hotkey) => hotkey.id === selectedRoutine.hotkeyProfileId) ?? null
-  }, [hotkeys, selectedRoutine])
+    if (!selectedHotkeyId) return null
+    return hotkeys.find((hotkey) => hotkey.id === selectedHotkeyId) ?? null
+  }, [hotkeys, selectedHotkeyId])
 
   const idleBuffStatuses = useMemo(
     () =>
@@ -229,10 +230,7 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
       tapKey,
     }
 
-    const buffEntries = resolveRoutineBuffs(
-      hotkeys,
-      selectedRoutine.hotkeyProfileId ?? null,
-    )
+    const buffEntries = resolveProfileBuffs(hotkeys, selectedHotkeyId)
     const buffRunner = new BuffRunner(buffEntries, {
       keyboard,
       shouldAbort: () => abortRef.current,
@@ -247,6 +245,7 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
       await runRoutineLoop(selectedRoutine, hotkeys, {
         keyboard,
         buffRunner,
+        activeHotkeyProfileId: selectedHotkeyId,
         focusMapleStory: async () => {
           if (!window.electronAPI) {
             throw new Error('Keyboard control requires the Electron app')
@@ -313,6 +312,7 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
     logActivity,
     releaseAllHeldKeys,
     selectedRoutine,
+    selectedHotkeyId,
     syncActivityLogCoords,
     tapKey,
     trackHeldKey,

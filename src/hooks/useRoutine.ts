@@ -16,7 +16,6 @@ function createEmptyRoutine(): Routine {
   return {
     id: createId(),
     name: 'Untitled Routine',
-    hotkeyProfileId: null,
     points: [],
   }
 }
@@ -149,7 +148,6 @@ export function useRoutine() {
       setRoutine({
         id: normalized.id,
         name: normalized.name,
-        hotkeyProfileId: normalized.hotkeyProfileId,
         points: normalized.points,
       })
       setSelectedPointIdState(null)
@@ -182,14 +180,6 @@ export function useRoutine() {
     },
     [selectedPointId],
   )
-
-  const setHotkeyProfileId = useCallback((hotkeyProfileId: string | null) => {
-    setRoutine((current) => ({
-      ...current,
-      hotkeyProfileId,
-    }))
-    setSelectedMoveId(null)
-  }, [])
 
   const updatePointPosition = useCallback(
     (pointId: string, coord: Coordinates) => {
@@ -247,7 +237,6 @@ export function useRoutine() {
     loadRoutine,
     setRoutineName,
     setSelectedPointName,
-    setHotkeyProfileId,
     updatePointPosition,
     updateSelectedMove,
   }
@@ -256,7 +245,6 @@ export function useRoutine() {
 export function toRegistryRoutine(routine: Routine) {
   return {
     name: routine.name,
-    hotkeyProfileId: routine.hotkeyProfileId,
     points: routine.points,
   }
 }
