@@ -15,8 +15,10 @@ import {
   stopDiscordBot,
   sendOwnerScreenshotDm,
   sendOwnerTestMessageDm,
+  sendLieDetectorAlertDm,
   getDiscordConnectionStatus,
 } from './discordBot'
+import { createBotSettingsHandlers } from './botSettingsSave'
 import {
   loadEnvFile,
   readDiscordConfigFile,
@@ -124,6 +126,7 @@ function registerDisplayMediaHandler() {
 
 function registerIpcHandlers() {
   const registrySave = createRegistrySaveHandlers(process.env.APP_ROOT!)
+  const botSettings = createBotSettingsHandlers(process.env.APP_ROOT!)
 
   ipcMain.handle('registry:load-routines', () => registrySave.loadRoutines())
 
@@ -179,6 +182,39 @@ function registerIpcHandlers() {
   ipcMain.handle('keyboard:type', async (_event, text: string) => {
     await typeText(text)
   })
+
+  ipcMain.handle('bot-settings:load', () => botSettings.loadSettings())
+
+  ipcMain.handle('bot-settings:save', (_event, settings) =>
+    botSettings.saveSettings(settings),
+  )
+
+  ipcMain.handle('bot-settings:get-template-info', () =>
+    botSettings.getTemplateInfo(),
+  )
+
+  ipcMain.handle('bot-settings:get-template-data-url', () =>
+    botSettings.getTemplateDataUrl(),
+  )
+
+  ipcMain.handle('bot-settings:pick-template', () =>
+    botSettings.pickTemplateImage(),
+  )
+
+  ipcMain.handle(
+    'discord:send-lie-detector-alert',
+    async (_event, matchScore?: number) => {
+      console.log('[discord] IPC send-lie-detector-alert', { matchScore })
+      try {
+        await sendLieDetectorAlertDm(
+          typeof matchScore === 'number' ? matchScore : undefined,
+        )
+      } catch (err) {
+        console.error('[discord] IPC send-lie-detector-alert failed', err)
+        throw err
+      }
+    },
+  )
 
   ipcMain.on('discord:report-status', (_event, patch) => {
     updateAppDiscordStatus(patch)

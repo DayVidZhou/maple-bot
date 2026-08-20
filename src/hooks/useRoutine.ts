@@ -76,6 +76,70 @@ export function useRoutine() {
     setSelectedMoveId(null)
   }, [selectedPointId])
 
+  const duplicateSelectedPoint = useCallback(
+    (cropWidth: number | null) => {
+      if (!selectedPointId) return
+
+      let newPointId: string | undefined
+
+      setRoutine((current) => {
+        const sourceIndex = current.points.findIndex(
+          (point) => point.id === selectedPointId,
+        )
+        if (sourceIndex < 0) return current
+
+        const source = current.points[sourceIndex]
+        const pixelOffset =
+          cropWidth != null && cropWidth > 0 ? 10 / cropWidth : 0.01
+
+        const duplicate: RoutinePoint = {
+          id: createId(),
+          name: defaultPointName(current.points.length),
+          x: Math.min(1, Math.max(0, source.x + pixelOffset)),
+          y: source.y,
+          moves: source.moves.map((move) => ({
+            ...move,
+            id: createId(),
+          })),
+        }
+        newPointId = duplicate.id
+
+        const points = [...current.points]
+        points.splice(sourceIndex + 1, 0, duplicate)
+
+        return {
+          ...current,
+          points,
+        }
+      })
+
+      if (newPointId) {
+        setSelectedPointIdState(newPointId)
+        setSelectedMoveId(null)
+      }
+    },
+    [selectedPointId],
+  )
+
+  const reorderPoints = useCallback((activeId: string, overId: string) => {
+    if (activeId === overId) return
+
+    setRoutine((current) => {
+      const oldIndex = current.points.findIndex((point) => point.id === activeId)
+      const newIndex = current.points.findIndex((point) => point.id === overId)
+      if (oldIndex < 0 || newIndex < 0) return current
+
+      const points = [...current.points]
+      const [moved] = points.splice(oldIndex, 1)
+      points.splice(newIndex, 0, moved)
+
+      return {
+        ...current,
+        points,
+      }
+    })
+  }, [])
+
   const addMove = useCallback(
     (option: HotkeyMoveOption, defaults: MoveDefaults) => {
       if (!selectedPointId) return
@@ -125,6 +189,41 @@ export function useRoutine() {
       ),
     }))
     setSelectedMoveId(null)
+  }, [selectedMoveId, selectedPointId])
+
+  const duplicateSelectedMove = useCallback(() => {
+    if (!selectedPointId || !selectedMoveId) return
+
+    let newMoveId: string | undefined
+
+    setRoutine((current) => ({
+      ...current,
+      points: current.points.map((point) => {
+        if (point.id !== selectedPointId) return point
+
+        const sourceIndex = point.moves.findIndex(
+          (move) => move.id === selectedMoveId,
+        )
+        if (sourceIndex < 0) return point
+
+        const source = point.moves[sourceIndex]
+        const duplicate: Move = {
+          ...source,
+          id: createId(),
+        }
+        newMoveId = duplicate.id
+
+        const moves = [...point.moves]
+        moves.splice(sourceIndex + 1, 0, duplicate)
+
+        return {
+          ...point,
+          moves,
+        }
+      }),
+    }))
+
+    if (newMoveId) setSelectedMoveId(newMoveId)
   }, [selectedMoveId, selectedPointId])
 
   const resetRoutine = useCallback(() => {
@@ -239,8 +338,11 @@ export function useRoutine() {
     setSelectedMoveId,
     addPoint,
     deleteSelectedPoint,
+    duplicateSelectedPoint,
+    reorderPoints,
     addMove,
     deleteSelectedMove,
+    duplicateSelectedMove,
     resetRoutine,
     startNewRoutine,
     loadRoutine,

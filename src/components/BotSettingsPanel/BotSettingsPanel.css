@@ -1,0 +1,98 @@
+.bot-settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #2a2f3d;
+  border-radius: 8px;
+  background: #12151c;
+}
+
+.bot-settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.bot-settings-header h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #fff;
+}
+
+.bot-settings-summary,
+.bot-settings-meta {
+  margin: 0.2rem 0 0;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+}
+
+.bot-settings-meta {
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.bot-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.bot-settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid #2a2f3d;
+}
+
+.bot-settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: #9aa0a6;
+}
+
+.bot-settings-field input[type='range'] {
+  width: 100%;
+}
+
+.bot-settings-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #9aa0a6;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.bot-settings-checkbox input {
+  margin-top: 0.15rem;
+  accent-color: #4f8cff;
+}
+
+.bot-settings-hint {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.bot-settings-feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.bot-settings-success {
+  color: #4ade80;
+}
+
+.bot-settings-error {
+  color: #ffb4b0;
+}

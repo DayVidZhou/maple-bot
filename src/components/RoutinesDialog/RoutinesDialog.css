@@ -102,11 +102,61 @@
 
 .routines-point-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
 .routines-point-actions .btn {
+  flex: 1 1 min(100%, 7rem);
+}
+
+.routines-sortable-item {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+  padding: 0;
+}
+
+.routines-sortable-item-button {
   flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  padding: 0.55rem 0.7rem 0.55rem 0;
+  text-align: left;
+  cursor: pointer;
+  font-size: inherit;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.routines-drag-handle {
+  flex-shrink: 0;
+  width: 1.6rem;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: grab;
+  font-size: 0.75rem;
+  line-height: 1;
+  padding: 0.55rem 0.15rem;
+  touch-action: none;
+}
+
+.routines-drag-handle:hover {
+  color: #cbd5e1;
+}
+
+.routines-drag-handle:active {
+  cursor: grabbing;
+}
+
+.routines-sortable-item-dragging .routines-list-item {
+  opacity: 0.82;
+  border-color: #4f8cff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
 .routines-hint {
@@ -290,8 +340,14 @@
   max-width: 100%;
 }
 
-.routines-delete-move {
-  width: 100%;
+.routines-move-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.routines-move-edit-actions .btn {
+  flex: 1 1 min(100%, 8rem);
 }
 
 .routines-point-moves {

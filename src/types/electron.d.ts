@@ -65,6 +65,23 @@ export interface ElectronAPI {
     hasClientId: boolean
     hasOwnerId: boolean
   }>
+  loadBotSettings: () => Promise<import('./botSettings').BotSettings>
+  saveBotSettings: (
+    settings: import('./botSettings').BotSettings,
+  ) => Promise<{ savedAt: string }>
+  getLieDetectorTemplateInfo: () => Promise<{
+    hasTemplate: boolean
+    width: number | null
+    height: number | null
+  }>
+  getLieDetectorTemplateDataUrl: () => Promise<string | null>
+  pickLieDetectorTemplate: () => Promise<{
+    ok: boolean
+    width: number | null
+    height: number | null
+    message?: string
+  }>
+  sendLieDetectorAlert: (matchScore?: number) => Promise<void>
 }
 
 declare global {

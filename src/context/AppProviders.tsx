@@ -8,8 +8,10 @@ import { HotkeyProvider } from './HotkeyContext'
 import { RoutineProvider } from './RoutineContext'
 import { RunRoutineProvider } from './RunRoutineContext'
 import { ScreenCaptureProvider } from './ScreenCaptureContext'
+import { BotSettingsProvider } from './BotSettingsContext'
 import { DiscordStatusBridge } from '../components/DiscordStatusBridge/DiscordStatusBridge'
 import { DiscordRemoteBridge } from '../components/DiscordRemoteBridge/DiscordRemoteBridge'
+import { LieDetectorMonitor } from '../components/LieDetectorMonitor/LieDetectorMonitor'
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -19,15 +21,18 @@ export function AppProviders({ children }: { children: ReactNode }) {
           <RegistryProvider>
             <FocusRegionProvider>
               <ActivityLogProvider>
-                <HotkeyProvider>
-                  <RoutineProvider>
-                    <RunRoutineProvider>
-                      <DiscordStatusBridge />
-                      <DiscordRemoteBridge />
-                      {children}
-                    </RunRoutineProvider>
-                  </RoutineProvider>
-                </HotkeyProvider>
+                <BotSettingsProvider>
+                  <HotkeyProvider>
+                    <RoutineProvider>
+                      <RunRoutineProvider>
+                        <LieDetectorMonitor />
+                        <DiscordStatusBridge />
+                        <DiscordRemoteBridge />
+                        {children}
+                      </RunRoutineProvider>
+                    </RoutineProvider>
+                  </HotkeyProvider>
+                </BotSettingsProvider>
               </ActivityLogProvider>
             </FocusRegionProvider>
           </RegistryProvider>

@@ -15,6 +15,7 @@ import { USER_NOT_FOUND } from '../../types/user'
 import { FocusRegionView } from '../FocusRegionView/FocusRegionView'
 import { formatRoutineMoveLabel, HotkeyMoveSelect } from './HotkeyMoveSelect'
 import { SelectedMoveFields } from './SelectedMoveFields'
+import { SortableRoutinePointsList } from './SortableRoutinePointsList'
 import './RoutinesDialog.css'
 
 export function RoutinesDialog() {
@@ -35,8 +36,11 @@ export function RoutinesDialog() {
     setSelectedMoveId,
     addPoint,
     deleteSelectedPoint,
+    duplicateSelectedPoint,
+    reorderPoints,
     addMove,
     deleteSelectedMove,
+    duplicateSelectedMove,
     resetRoutine,
     setRoutineName,
     setSendDiscordScreenshots,
@@ -92,6 +96,21 @@ export function RoutinesDialog() {
     }
 
     addPoint({ x: 0.5, y: 0.5 })
+  }
+
+  const resolveCropWidth = (): number | null => {
+    if (cropSize && cropSize.width > 0) return cropSize.width
+
+    const video = videoRef.current
+    const fallbackCrop = video
+      ? getMinimapCropSize(video.videoWidth, video.videoHeight, focusSize)
+      : null
+
+    return fallbackCrop?.width ?? null
+  }
+
+  const handleDuplicatePoint = () => {
+    duplicateSelectedPoint(resolveCropWidth())
   }
 
   const handleSave = () => {
@@ -188,12 +207,23 @@ export function RoutinesDialog() {
                 <button
                   type="button"
                   className="btn btn-secondary"
+                  onClick={handleDuplicatePoint}
+                  disabled={!selectedPointId}
+                >
+                  Duplicate Point
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
                   onClick={deleteSelectedPoint}
                   disabled={!selectedPointId}
                 >
                   Delete Point
                 </button>
               </div>
+              <p className="routines-hint">
+                Drag the handle to reorder points (this changes run order).
+              </p>
               {selectedPoint && (
                 <label className="routines-name-field">
                   <span>Point name</span>
@@ -207,31 +237,13 @@ export function RoutinesDialog() {
                 </label>
               )}
               <ul className="routines-list">
-                {routine.points.length === 0 ? (
-                  <li className="routines-list-empty">No points yet</li>
-                ) : (
-                  routine.points.map((point, index) => (
-                    <li key={point.id}>
-                      <button
-                        type="button"
-                        className={`routines-list-item ${
-                          point.id === selectedPointId ? 'selected' : ''
-                        }`}
-                        onClick={() => setSelectedPointId(point.id)}
-                      >
-                        <span className="routines-list-index">{index + 1}</span>
-                        <span className="routines-list-label">{point.name}</span>
-                        <span className="routines-list-meta">
-                          {formatPointLabel(point)}
-                        </span>
-                        <span className="routines-list-meta">
-                          {point.moves.length} move
-                          {point.moves.length === 1 ? '' : 's'}
-                        </span>
-                      </button>
-                    </li>
-                  ))
-                )}
+                <SortableRoutinePointsList
+                  points={routine.points}
+                  selectedPointId={selectedPointId}
+                  onSelectPoint={setSelectedPointId}
+                  onReorderPoints={reorderPoints}
+                  formatPointLabel={formatPointLabel}
+                />
               </ul>
             </section>
 
@@ -291,13 +303,22 @@ export function RoutinesDialog() {
                     hotkeys={hotkeys}
                     onChange={updateSelectedMove}
                   />
-                  <button
-                    type="button"
-                    className="btn btn-danger routines-delete-move"
-                    onClick={deleteSelectedMove}
-                  >
-                    Delete Move
-                  </button>
+                  <div className="routines-move-edit-actions">
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={duplicateSelectedMove}
+                    >
+                      Duplicate Move
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger"
+                      onClick={deleteSelectedMove}
+                    >
+                      Delete Move
+                    </button>
+                  </div>
                 </div>
               )}
 

@@ -151,6 +151,44 @@ export async function sendOwnerTestMessageDm(): Promise<void> {
   discordLog('Owner test message DM sent')
 }
 
+export async function sendLieDetectorAlertDm(
+  matchScore?: number,
+): Promise<void> {
+  const { ownerId } = getDiscordConfig()
+
+  discordLog('Sending lie detector alert DM', {
+    connected: activeDiscordClient?.isReady() ?? false,
+    hasOwnerId: Boolean(ownerId),
+    matchScore: matchScore ?? null,
+  })
+
+  if (!activeDiscordClient?.isReady()) {
+    throw new Error('Discord bot is not connected')
+  }
+
+  if (!ownerId) {
+    throw new Error('Your Discord User ID is not configured')
+  }
+
+  const owner = await activeDiscordClient.users.fetch(ownerId)
+  const scoreText =
+    matchScore != null ? ` (match ${(matchScore * 100).toFixed(1)}%)` : ''
+  const png = await captureDesktopScreenshot()
+  const file = new AttachmentBuilder(png, { name: 'lie-detector-alert.png' })
+
+  try {
+    await owner.send({
+      content: `Lie detector detected${scoreText} · ${new Date().toLocaleString()} — check MapleStory Worlds.`,
+      files: [file],
+    })
+  } catch (err) {
+    discordError('Lie detector alert DM failed', err)
+    throw new Error(formatDiscordDmError(err))
+  }
+
+  discordLog('Lie detector alert DM sent', { matchScore: matchScore ?? null })
+}
+
 export interface DiscordConnectionStatus {
   enabled: boolean
   connected: boolean

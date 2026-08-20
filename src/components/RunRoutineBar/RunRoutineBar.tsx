@@ -3,6 +3,7 @@ import { useRunRoutineContext } from '../../context/RunRoutineContext'
 import { ActivityLogTable } from './ActivityLogTable'
 import { BuffStatusTable } from './BuffStatusTable'
 import { DiscordDebugPanel } from '../DiscordDebugPanel/DiscordDebugPanel'
+import { BotSettingsPanel } from '../BotSettingsPanel/BotSettingsPanel'
 import './RunRoutineBar.css'
 
 export function RunRoutineBar() {
@@ -68,6 +69,8 @@ export function RunRoutineBar() {
       </div>
 
       <DiscordDebugPanel />
+
+      <BotSettingsPanel />
 
       <BuffStatusTable
         rows={buffStatuses}

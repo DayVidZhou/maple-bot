@@ -69,4 +69,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     clientId: string
     ownerId: string
   }) => ipcRenderer.invoke('discord:save-config', config),
+  loadBotSettings: () => ipcRenderer.invoke('bot-settings:load'),
+  saveBotSettings: (settings: unknown) =>
+    ipcRenderer.invoke('bot-settings:save', settings),
+  getLieDetectorTemplateInfo: () =>
+    ipcRenderer.invoke('bot-settings:get-template-info'),
+  getLieDetectorTemplateDataUrl: () =>
+    ipcRenderer.invoke('bot-settings:get-template-data-url'),
+  pickLieDetectorTemplate: () => ipcRenderer.invoke('bot-settings:pick-template'),
+  sendLieDetectorAlert: (matchScore?: number) =>
+    ipcRenderer.invoke('discord:send-lie-detector-alert', matchScore),
 })
