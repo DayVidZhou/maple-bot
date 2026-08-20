@@ -7,16 +7,23 @@ import {
   LIE_DETECTOR_FEATURE_REGION,
   LIE_DETECTOR_SIGNATURES,
 } from './lieDetectorSignatures'
-import { matchTemplate, type TemplateMatchResult } from './templateMatch'
+import {
+  matchTemplateWithStats,
+  prepareTemplateStats,
+  type TemplateMatchResult,
+  type TemplateStats,
+} from './templateMatch'
 
-const MAX_SCAN_WIDTH = 960
+export const LIE_DETECTOR_SCAN_WIDTH = 640
 const NUMPAD_COLUMNS = 3
 const NUMPAD_ROWS = 4
+const FEATURE_FAST_REJECT = 0.28
+const TEMPLATE_MATCH_STEP = 6
 
-export interface LieDetectorTemplate {
+export interface PreparedLieDetectorTemplate {
   name: string
-  data: ImageData
   weight: number
+  stats: TemplateStats
 }
 
 export interface LieDetectorDetection extends TemplateMatchResult {
@@ -26,20 +33,37 @@ export interface LieDetectorDetection extends TemplateMatchResult {
   signatureScores: Record<string, number>
 }
 
-export function buildLieDetectorTemplates(
+/** @deprecated Use PreparedLieDetectorTemplate */
+export type LieDetectorTemplate = PreparedLieDetectorTemplate
+
+export function prepareLieDetectorTemplates(
   reference: ImageData,
-): LieDetectorTemplate[] {
-  return LIE_DETECTOR_SIGNATURES.map((signature) => ({
-    name: signature.name,
-    weight: signature.weight,
-    data: cropNormalizedRect(reference, signature.rect),
-  })).filter((template) => template.data.width > 4 && template.data.height > 4)
+): PreparedLieDetectorTemplate[] {
+  const normalizedReference = downscaleImageData(
+    reference,
+    LIE_DETECTOR_SCAN_WIDTH,
+  )
+
+  return LIE_DETECTOR_SIGNATURES.map((signature) => {
+    const data = cropNormalizedRect(normalizedReference, signature.rect)
+    if (data.width <= 4 || data.height <= 4) return null
+
+    return {
+      name: signature.name,
+      weight: signature.weight,
+      stats: prepareTemplateStats(data),
+    }
+  }).filter((template): template is PreparedLieDetectorTemplate => template != null)
 }
 
-function getCenterRegion(
-  width: number,
-  height: number,
-): NormalizedRect {
+/** @deprecated Use prepareLieDetectorTemplates */
+export function buildLieDetectorTemplates(
+  reference: ImageData,
+): PreparedLieDetectorTemplate[] {
+  return prepareLieDetectorTemplates(reference)
+}
+
+function getCenterRegion(width: number, height: number): NormalizedRect {
   const regionWidth = width * LIE_DETECTOR_FEATURE_REGION.widthFraction
   const regionHeight = height * LIE_DETECTOR_FEATURE_REGION.heightFraction
 
@@ -88,8 +112,8 @@ function scoreBlueWhitePanel(imageData: ImageData): number {
   const endX = Math.floor(region.x + panelWidth)
   const endY = Math.floor(region.y + region.height)
 
-  for (let y = startY; y < endY; y += 2) {
-    for (let x = startX; x < endX; x += 2) {
+  for (let y = startY; y < endY; y += 3) {
+    for (let x = startX; x < endX; x += 3) {
       const index = (y * imageData.width + x) * 4
       const r = imageData.data[index]
       const g = imageData.data[index + 1]
@@ -131,9 +155,11 @@ function scoreScrambledNumpad(imageData: ImageData): number {
       let buttonPixels = 0
       let samples = 0
 
-      for (let y = cellY; y < cellY + cellH; y += 2) {
-        for (let x = cellX; x < cellX + cellW; x += 2) {
-          if (x < 0 || y < 0 || x >= imageData.width || y >= imageData.height) continue
+      for (let y = cellY; y < cellY + cellH; y += 3) {
+        for (let x = cellX; x < cellX + cellW; x += 3) {
+          if (x < 0 || y < 0 || x >= imageData.width || y >= imageData.height) {
+            continue
+          }
           const index = (y * imageData.width + x) * 4
           samples += 1
           if (
@@ -158,15 +184,23 @@ function scoreScrambledNumpad(imageData: ImageData): number {
   return filledCells / requiredCells
 }
 
-function scoreLieDetectorFeatures(imageData: ImageData): number {
+function scoreLieDetectorFeatures(imageData: ImageData): {
+  featureScore: number
+  blueWhite: number
+  numpad: number
+} {
   const blueWhite = scoreBlueWhitePanel(imageData)
   const numpad = scoreScrambledNumpad(imageData)
-  return Math.min(1, blueWhite * 0.55 + numpad * 0.45)
+  return {
+    blueWhite,
+    numpad,
+    featureScore: Math.min(1, blueWhite * 0.55 + numpad * 0.45),
+  }
 }
 
 function matchLieDetectorTemplates(
   frame: ImageData,
-  templates: LieDetectorTemplate[],
+  templates: PreparedLieDetectorTemplate[],
   threshold: number,
 ): {
   score: number
@@ -174,13 +208,11 @@ function matchLieDetectorTemplates(
   bestX: number
   bestY: number
 } {
-  const scaledFrame = downscaleImageData(frame, MAX_SCAN_WIDTH)
-  const scale = scaledFrame.width / frame.width
-  const searchWidth = Math.floor(scaledFrame.width * 0.82)
-  const searchHeight = Math.floor(scaledFrame.height * 0.88)
+  const searchWidth = Math.floor(frame.width * 0.92)
+  const searchHeight = Math.floor(frame.height * 0.92)
   const searchRegion = {
-    x: Math.floor((scaledFrame.width - searchWidth) / 2),
-    y: Math.floor((scaledFrame.height - searchHeight) / 2),
+    x: Math.floor((frame.width - searchWidth) / 2),
+    y: Math.floor((frame.height - searchHeight) / 2),
     width: searchWidth,
     height: searchHeight,
   }
@@ -193,14 +225,9 @@ function matchLieDetectorTemplates(
   const signatureScores: Record<string, number> = {}
 
   for (const template of templates) {
-    const scaledTemplate = downscaleImageData(
-      template.data,
-      Math.max(8, Math.floor(template.data.width * scale)),
-    )
-
-    const result = matchTemplate(scaledFrame, scaledTemplate, {
+    const result = matchTemplateWithStats(frame, template.stats, {
       threshold: threshold * 0.85,
-      step: 4,
+      step: TEMPLATE_MATCH_STEP,
       searchRegion,
     })
 
@@ -210,8 +237,8 @@ function matchLieDetectorTemplates(
 
     if (result.score > bestPeak) {
       bestPeak = result.score
-      bestX = Math.floor(result.x / scale)
-      bestY = Math.floor(result.y / scale)
+      bestX = result.x
+      bestY = result.y
     }
   }
 
@@ -225,10 +252,24 @@ function matchLieDetectorTemplates(
 
 export function detectLieDetector(
   frame: ImageData,
-  templates: LieDetectorTemplate[],
+  templates: PreparedLieDetectorTemplate[],
   threshold: number,
 ): LieDetectorDetection {
-  const featureScore = scoreLieDetectorFeatures(frame)
+  const { featureScore, blueWhite, numpad } = scoreLieDetectorFeatures(frame)
+
+  if (featureScore < FEATURE_FAST_REJECT) {
+    return {
+      matched: false,
+      score: featureScore * 0.42,
+      scaledScore: featureScore * 0.42,
+      templateScore: 0,
+      featureScore,
+      signatureScores: {},
+      x: 0,
+      y: 0,
+    }
+  }
+
   const templateMatch =
     templates.length > 0
       ? matchLieDetectorTemplates(frame, templates, threshold)
@@ -241,8 +282,8 @@ export function detectLieDetector(
 
   const strongFeatureMatch =
     featureScore >= Math.max(0.62, threshold - 0.08) &&
-    scoreScrambledNumpad(frame) >= 0.55 &&
-    scoreBlueWhitePanel(frame) >= 0.35
+    numpad >= 0.55 &&
+    blueWhite >= 0.35
 
   const matched =
     combinedScore >= threshold ||

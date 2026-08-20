@@ -4,10 +4,11 @@ import { useBotSettingsContext } from '../../context/BotSettingsContext'
 import { useRunRoutineContext } from '../../context/RunRoutineContext'
 import { useScreenCaptureContext } from '../../context/ScreenCaptureContext'
 import {
-  buildLieDetectorTemplates,
   detectLieDetector,
-  type LieDetectorTemplate,
+  prepareLieDetectorTemplates,
+  type PreparedLieDetectorTemplate,
 } from '../../utils/detectLieDetector'
+import { captureLieDetectorScanFrame } from '../../utils/lieDetectorFrameCapture'
 import { loadImageDataFromUrl } from '../../utils/imageDataUtils'
 import { LIE_DETECTOR_REFERENCE_URL } from '../../utils/lieDetectorSignatures'
 
@@ -16,9 +17,11 @@ export function LieDetectorMonitor() {
   const { settings, templateInfo } = useBotSettingsContext()
   const { isRunning, stopRun } = useRunRoutineContext()
   const { logActivity } = useActivityLogContext()
-  const [templates, setTemplates] = useState<LieDetectorTemplate[]>([])
+  const [templates, setTemplates] = useState<PreparedLieDetectorTemplate[]>([])
   const lastAlertAtRef = useRef(0)
   const scanningRef = useRef(false)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -42,49 +45,45 @@ export function LieDetectorMonitor() {
         return
       }
 
-      setTemplates(buildLieDetectorTemplates(reference))
+      setTemplates(prepareLieDetectorTemplates(reference))
     }
 
     void loadTemplates()
     return () => {
       cancelled = true
     }
-  }, [settings.lieDetectorEnabled, templateInfo.hasTemplate, templateInfo.width, templateInfo.height])
+  }, [templateInfo.hasTemplate, templateInfo.width, templateInfo.height])
 
   useEffect(() => {
     if (
       !settings.lieDetectorEnabled ||
       !isCapturing ||
-      templates.length === 0 ||
-      !videoRef.current
+      !isRunning ||
+      templates.length === 0
     ) {
       return
     }
 
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })
-    if (!ctx) return
+    if (!canvasRef.current) {
+      canvasRef.current = document.createElement('canvas')
+      ctxRef.current = canvasRef.current.getContext('2d', {
+        willReadFrequently: true,
+      })
+    }
 
-    const scan = async () => {
+    const scan = () => {
       if (scanningRef.current) return
 
       const video = videoRef.current
-      if (!video || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
-        return
-      }
-
-      const sourceWidth = video.videoWidth
-      const sourceHeight = video.videoHeight
-      if (sourceWidth === 0 || sourceHeight === 0) {
-        return
-      }
+      const canvas = canvasRef.current
+      const ctx = ctxRef.current
+      if (!video || !canvas || !ctx) return
 
       scanningRef.current = true
       try {
-        canvas.width = sourceWidth
-        canvas.height = sourceHeight
-        ctx.drawImage(video, 0, 0, sourceWidth, sourceHeight)
-        const frame = ctx.getImageData(0, 0, sourceWidth, sourceHeight)
+        const frame = captureLieDetectorScanFrame(video, canvas, ctx)
+        if (!frame) return
+
         const detection = detectLieDetector(
           frame,
           templates,
@@ -120,15 +119,15 @@ export function LieDetectorMonitor() {
           })
         }
 
-        if (window.electronAPI?.sendLieDetectorAlert) {
-          try {
-            await window.electronAPI.sendLieDetectorAlert(detection.score)
+        void window.electronAPI?.sendLieDetectorAlert?.(detection.score)
+          .then(() => {
             logActivity({
               category: 'system',
               event: 'Discord lie detector alert',
               detail: `Sent · match ${scoreLabel}`,
             })
-          } catch (err) {
+          })
+          .catch((err: unknown) => {
             const message =
               err instanceof Error ? err.message : 'Discord alert failed'
             logActivity({
@@ -136,16 +135,17 @@ export function LieDetectorMonitor() {
               event: 'Discord lie detector alert failed',
               detail: message,
             })
-          }
-        }
+          })
       } finally {
         scanningRef.current = false
       }
     }
 
-    const intervalId = window.setInterval(() => {
-      void scan()
-    }, settings.lieDetectorScanIntervalMs)
+    scan()
+    const intervalId = window.setInterval(
+      scan,
+      settings.lieDetectorScanIntervalMs,
+    )
 
     return () => {
       window.clearInterval(intervalId)

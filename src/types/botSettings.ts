@@ -11,7 +11,7 @@ export const DEFAULT_BOT_SETTINGS: BotSettings = {
   lieDetectorMatchThreshold: 0.68,
   lieDetectorAlertCooldownMs: 60_000,
   lieDetectorStopRoutine: true,
-  lieDetectorScanIntervalMs: 300,
+  lieDetectorScanIntervalMs: 30_000,
 }
 
 export function normalizeBotSettings(
@@ -28,7 +28,7 @@ export function normalizeBotSettings(
     lieDetectorStopRoutine:
       settings?.lieDetectorStopRoutine ?? DEFAULT_BOT_SETTINGS.lieDetectorStopRoutine,
     lieDetectorScanIntervalMs:
-      clamp(settings?.lieDetectorScanIntervalMs, 100, 2_000) ??
+      clamp(settings?.lieDetectorScanIntervalMs, 30_000, 120_000) ??
       DEFAULT_BOT_SETTINGS.lieDetectorScanIntervalMs,
   }
 }

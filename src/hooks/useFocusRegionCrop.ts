@@ -97,8 +97,12 @@ export function useFocusRegionCrop(
       const cropWidth = Math.floor(sourceWidth * (focusSize.widthPercent / 100))
       const cropHeight = Math.floor(sourceHeight * (focusSize.heightPercent / 100))
 
-      canvas.width = cropWidth
-      canvas.height = cropHeight
+      if (canvas.width !== cropWidth) {
+        canvas.width = cropWidth
+      }
+      if (canvas.height !== cropHeight) {
+        canvas.height = cropHeight
+      }
 
       ctx.drawImage(video, 0, 0, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight)
 

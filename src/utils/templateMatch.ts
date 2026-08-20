@@ -26,6 +26,8 @@ interface TemplateStats {
   height: number
 }
 
+export type { TemplateStats }
+
 function buildTemplateStats(template: ImageData): TemplateStats {
   const values = imageDataToGrayscale(template)
   let sum = 0
@@ -98,14 +100,13 @@ function normalizedCrossCorrelation(
   return numerator / (tplValues.length * patchStd * std)
 }
 
-export function matchTemplate(
+export function matchTemplateWithStats(
   imageData: ImageData,
-  templateData: ImageData,
+  template: TemplateStats,
   options: TemplateMatchOptions = {},
 ): TemplateMatchResult {
   const threshold = options.threshold ?? 0.72
   const step = options.step ?? 3
-  const template = buildTemplateStats(templateData)
   const image = imageDataToGrayscale(imageData)
   const imageWidth = imageData.width
   const imageHeight = imageData.height
@@ -154,4 +155,20 @@ export function matchTemplate(
     x: bestX,
     y: bestY,
   }
+}
+
+export function prepareTemplateStats(templateData: ImageData): TemplateStats {
+  return buildTemplateStats(templateData)
+}
+
+export function matchTemplate(
+  imageData: ImageData,
+  templateData: ImageData,
+  options: TemplateMatchOptions = {},
+): TemplateMatchResult {
+  return matchTemplateWithStats(
+    imageData,
+    buildTemplateStats(templateData),
+    options,
+  )
 }
