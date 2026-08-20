@@ -109,10 +109,22 @@ Files: `.routine-save-file.ts`, `.hotkey-save-file.ts`, `.minimap-save-file.ts`,
 npm run build          # compile renderer + main
 npm run pack           # build + package (current OS)
 npm run pack:mac       # macOS dmg/zip
-npm run pack:win       # Windows installer
+npm run pack:win       # Windows installer + portable + zip
 ```
 
 Output goes to `release/`.
+
+### Windows downloads
+
+After `npm run pack:win`, use one of these — **not** a lone exe copied out of `win-unpacked/`:
+
+| File | Use when |
+|------|----------|
+| `Maple Bot-Setup-<version>.exe` | Normal install. Run from anywhere (Downloads, Desktop, etc.); installs to `%LOCALAPPDATA%\Programs\`. |
+| `Maple Bot-Portable-<version>.exe` | No install. Single file you can move anywhere and double-click. |
+| `Maple Bot-<version>-win-x64.zip` | Extract the **whole folder**, then run `Maple Bot.exe` inside it. |
+
+`release/win-unpacked/` is a dev/build artifact. It only works when the full folder (exe + `resources/` + DLLs) stays together. Copying just `Maple Bot.exe` to Downloads will fail silently.
 
 ## Architecture
 
