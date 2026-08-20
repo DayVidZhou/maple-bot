@@ -5,7 +5,6 @@ import {
   REST,
   Routes,
   type ChatInputCommandInteraction,
-  type Interaction,
   type MessageCreateOptions,
 } from 'discord.js'
 import type { BrowserWindow } from 'electron'
@@ -48,43 +47,39 @@ async function registerSlashCommands(token: string, clientId: string) {
   })
 }
 
-function isAuthorized(interaction: Interaction, ownerId: string | undefined) {
-  if (!ownerId) return false
-  return interaction.user.id === ownerId
+function toReplyOptions(
+  payload: string | MessageCreateOptions,
+  ephemeral: boolean,
+): MessageCreateOptions {
+  if (typeof payload === 'string') {
+    return { content: payload, ephemeral }
+  }
+
+  return { ...payload, ephemeral }
 }
 
-async function deliverToOwnerDm(
+async function deliverCommandReply(
   interaction: ChatInputCommandInteraction,
-  ownerId: string,
   payload: string | MessageCreateOptions,
 ): Promise<void> {
   const inDm = !interaction.inGuild()
+  const replyOptions = inDm
+    ? typeof payload === 'string'
+      ? { content: payload }
+      : payload
+    : toReplyOptions(payload, true)
 
-  if (inDm) {
-    if (interaction.deferred) {
-      await interaction.editReply(payload)
-      return
-    }
-    if (interaction.replied) {
-      await interaction.followUp(payload)
-      return
-    }
-    await interaction.reply(payload)
+  if (interaction.deferred) {
+    await interaction.editReply(replyOptions)
     return
   }
 
-  const owner = await interaction.client.users.fetch(ownerId)
-  await owner.send(payload)
-
-  if (interaction.deferred || interaction.replied) {
-    await interaction.editReply({ content: 'Sent to your DMs.' })
+  if (interaction.replied) {
+    await interaction.followUp(replyOptions)
     return
   }
 
-  await interaction.reply({
-    content: 'Sent to your DMs.',
-    ephemeral: true,
-  })
+  await interaction.reply(replyOptions)
 }
 
 export async function sendOwnerScreenshotDm(
@@ -179,10 +174,7 @@ export function getDiscordConnectionStatus(): DiscordConnectionStatus {
   }
 }
 
-async function handleScreenshot(
-  interaction: ChatInputCommandInteraction,
-  ownerId: string,
-) {
+async function handleScreenshot(interaction: ChatInputCommandInteraction) {
   discordLog('Slash command received: screenshot', {
     userId: interaction.user.id,
     inDm: !interaction.inGuild(),
@@ -193,7 +185,7 @@ async function handleScreenshot(
 
   const png = await captureDesktopScreenshot()
   const file = new AttachmentBuilder(png, { name: 'maple-bot-screenshot.png' })
-  await deliverToOwnerDm(interaction, ownerId, {
+  await deliverCommandReply(interaction, {
     content: 'Latest capture:',
     files: [file],
   })
@@ -202,7 +194,6 @@ async function handleScreenshot(
 
 async function handleStatus(
   interaction: ChatInputCommandInteraction,
-  ownerId: string,
   deps: DiscordBotDeps,
   appStatus: AppDiscordStatus,
 ) {
@@ -219,14 +210,13 @@ async function handleStatus(
     mapleStoryFocused,
   })
 
-  await deliverToOwnerDm(interaction, ownerId, {
+  await deliverCommandReply(interaction, {
     content: ['```', message, '```'].join('\n'),
   })
 }
 
 async function handleKeypress(
   interaction: ChatInputCommandInteraction,
-  ownerId: string,
   key: string,
 ) {
   const inDm = !interaction.inGuild()
@@ -248,9 +238,8 @@ async function handleKeypress(
   await interaction.deferReply(inDm ? undefined : { ephemeral: true })
   await focusApplication(MAPLESTORY_WORLDS_APP_NAME)
   await tapKey(key)
-  await deliverToOwnerDm(
+  await deliverCommandReply(
     interaction,
-    ownerId,
     `Pressed \`${key.trim().toLowerCase()}\` in MapleStory Worlds.`,
   )
   discordLog('Slash command completed: keypress', { key })
@@ -258,7 +247,6 @@ async function handleKeypress(
 
 async function handleStart(
   interaction: ChatInputCommandInteraction,
-  ownerId: string,
   deps: DiscordBotDeps,
 ) {
   const inDm = !interaction.inGuild()
@@ -272,30 +260,25 @@ async function handleStart(
     deps.getMainWindow(),
     'start-routine',
   )
-  await deliverToOwnerDm(
+  await deliverCommandReply(
     interaction,
-    ownerId,
     result.ok ? result.message : `Error: ${result.message}`,
   )
   discordLog('Slash command completed: start', { ok: result.ok })
 }
 
-async function handleHelp(
-  interaction: ChatInputCommandInteraction,
-  ownerId: string,
-) {
+async function handleHelp(interaction: ChatInputCommandInteraction) {
   discordLog('Slash command received: help', {
     userId: interaction.user.id,
     inDm: !interaction.inGuild(),
   })
 
-  await deliverToOwnerDm(interaction, ownerId, formatDiscordHelpMessage())
+  await deliverCommandReply(interaction, formatDiscordHelpMessage())
   discordLog('Slash command completed: help')
 }
 
 async function handleStop(
   interaction: ChatInputCommandInteraction,
-  ownerId: string,
   deps: DiscordBotDeps,
 ) {
   const inDm = !interaction.inGuild()
@@ -309,9 +292,8 @@ async function handleStop(
     deps.getMainWindow(),
     'stop-routine',
   )
-  await deliverToOwnerDm(
+  await deliverCommandReply(
     interaction,
-    ownerId,
     result.ok ? result.message : `Error: ${result.message}`,
   )
   discordLog('Slash command completed: stop', { ok: result.ok })
@@ -331,7 +313,7 @@ export async function startDiscordBot(deps: DiscordBotDeps): Promise<Client | nu
 
   if (!ownerId) {
     discordWarn(
-      'DISCORD_OWNER_ID is not set — commands and DMs will fail until configured',
+      'DISCORD_OWNER_ID is not set — routine screenshots and test DMs need it',
     )
   }
 
@@ -362,54 +344,37 @@ export async function startDiscordBot(deps: DiscordBotDeps): Promise<Client | nu
       inDm: !interaction.inGuild(),
     })
 
-    if (!isAuthorized(interaction, ownerId)) {
-      discordWarn('Rejected unauthorized interaction', {
-        userId: interaction.user.id,
-        expectedOwnerId: ownerId ?? null,
-      })
-      await interaction.reply({
-        content: 'You are not authorized to use this bot.',
-        ephemeral: true,
-      })
-      return
-    }
-
     try {
       if (interaction.commandName === 'help') {
-        await handleHelp(interaction, ownerId!)
+        await handleHelp(interaction)
         return
       }
 
       if (interaction.commandName === 'screenshot') {
-        await handleScreenshot(interaction, ownerId!)
+        await handleScreenshot(interaction)
         return
       }
 
       if (interaction.commandName === 'status') {
         discordLog('Slash command received: status')
-        await handleStatus(
-          interaction,
-          ownerId!,
-          deps,
-          getAppDiscordStatus(),
-        )
+        await handleStatus(interaction, deps, getAppDiscordStatus())
         discordLog('Slash command completed: status')
         return
       }
 
       if (interaction.commandName === 'keypress') {
         const key = interaction.options.getString('key', true)
-        await handleKeypress(interaction, ownerId!, key)
+        await handleKeypress(interaction, key)
         return
       }
 
       if (interaction.commandName === 'start') {
-        await handleStart(interaction, ownerId!, deps)
+        await handleStart(interaction, deps)
         return
       }
 
       if (interaction.commandName === 'stop') {
-        await handleStop(interaction, ownerId!, deps)
+        await handleStop(interaction, deps)
       }
     } catch (err) {
       const message =

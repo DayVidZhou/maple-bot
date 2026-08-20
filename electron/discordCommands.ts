@@ -7,10 +7,10 @@ export const discordSlashCommandBuilders = [
     .setDescription('List available Maple Bot commands'),
   new SlashCommandBuilder()
     .setName('screenshot')
-    .setDescription('DM you a screenshot of MapleStory Worlds (or the desktop)'),
+    .setDescription('Capture MapleStory Worlds (or the desktop)'),
   new SlashCommandBuilder()
     .setName('status')
-    .setDescription('DM you maple-bot status'),
+    .setDescription('Show maple-bot status'),
   new SlashCommandBuilder()
     .setName('keypress')
     .setDescription('Tap a key in MapleStory Worlds')
@@ -50,7 +50,6 @@ export function formatDiscordHelpMessage(): string {
 
   lines.push(
     '',
-    'Only the configured bot owner can use these commands.',
     'Use `/start` with screen capture on and a routine selected in the app.',
   )
 
