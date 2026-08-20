@@ -1,15 +1,12 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import dotenv from 'dotenv'
 import { discordLog } from './discordLog'
+import { getSaveRoot } from './saveRoot'
 
-const appRoot = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..',
-)
-
-export const ENV_PATH = path.join(appRoot, '.env')
+export function getEnvPath(): string {
+  return path.join(getSaveRoot(), '.env')
+}
 
 export interface DiscordEnvConfig {
   token: string
@@ -24,12 +21,12 @@ const DISCORD_KEYS = {
 } as const
 
 export async function loadEnvFile(): Promise<void> {
-  dotenv.config({ path: ENV_PATH, override: true })
+  dotenv.config({ path: getEnvPath(), override: true })
 }
 
 export async function readDiscordConfigFile(): Promise<DiscordEnvConfig> {
   try {
-    const contents = await fs.readFile(ENV_PATH, 'utf8')
+    const contents = await fs.readFile(getEnvPath(), 'utf8')
     const parsed = dotenv.parse(contents)
     return {
       token: parsed.DISCORD_BOT_TOKEN?.trim() ?? '',
@@ -73,7 +70,7 @@ export async function saveDiscordConfig(config: DiscordEnvConfig): Promise<void>
 
   let existing = ''
   try {
-    existing = await fs.readFile(ENV_PATH, 'utf8')
+    existing = await fs.readFile(getEnvPath(), 'utf8')
   } catch {
     existing = `# Discord — shared bot token + app id; each user sets their own Discord User ID\n`
   }
@@ -84,11 +81,12 @@ export async function saveDiscordConfig(config: DiscordEnvConfig): Promise<void>
     [DISCORD_KEYS.ownerId]: ownerId,
   })
 
-  await fs.writeFile(ENV_PATH, nextContents, 'utf8')
-  dotenv.config({ path: ENV_PATH, override: true })
+  const envPath = getEnvPath()
+  await fs.writeFile(envPath, nextContents, 'utf8')
+  dotenv.config({ path: envPath, override: true })
 
   discordLog('Saved Discord config to .env', {
-    envPath: ENV_PATH,
+    envPath,
     hasToken: Boolean(token),
     hasClientId: Boolean(clientId),
     hasOwnerId: Boolean(ownerId),

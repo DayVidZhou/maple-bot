@@ -28,6 +28,7 @@ import {
 import { pressKey, releaseKey, tapKey, typeText } from './keyboard'
 import { resolveDiscordRemoteAction } from './discordRemoteControl'
 import { createRegistrySaveHandlers } from './registrySave'
+import { getSaveRoot } from './saveRoot'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -125,8 +126,9 @@ function registerDisplayMediaHandler() {
 }
 
 function registerIpcHandlers() {
-  const registrySave = createRegistrySaveHandlers(process.env.APP_ROOT!)
-  const botSettings = createBotSettingsHandlers(process.env.APP_ROOT!)
+  const saveRoot = getSaveRoot()
+  const registrySave = createRegistrySaveHandlers(saveRoot)
+  const botSettings = createBotSettingsHandlers(saveRoot)
 
   ipcMain.handle('registry:load-routines', () => registrySave.loadRoutines())
 
