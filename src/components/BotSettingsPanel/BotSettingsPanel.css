@@ -44,8 +44,16 @@
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
-  padding-top: 0.25rem;
+  padding-top: 0.65rem;
   border-top: 1px solid #2a2f3d;
+}
+
+.bot-settings-intro {
+  margin: 0;
+}
+
+.bot-settings-template-btn {
+  align-self: flex-start;
 }
 
 .bot-settings-field {

@@ -13,6 +13,7 @@ export function BotSettingsPanel() {
   const [feedback, setFeedback] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   const templateLabel = templateInfo.hasTemplate
     ? templateInfo.width && templateInfo.height
@@ -45,12 +46,12 @@ export function BotSettingsPanel() {
         <div>
           <h3>Bot Settings</h3>
           <p className="bot-settings-summary">
-            Detects the lie detector popup by its blue panel, white text, scrambled
-            numpad, and bundled reference image.
-          </p>
-          <p className="bot-settings-meta">
+            {settings.lieDetectorEnabled
+              ? 'Lie detector alerts on'
+              : 'Lie detector alerts off'}
+            {' · '}
             {templateLabel}
-            {!templateInfo.hasTemplate ? ' · using bundled reference' : ''}
+            {!templateInfo.hasTemplate ? ' (bundled reference)' : ''}
           </p>
         </div>
 
@@ -58,70 +59,87 @@ export function BotSettingsPanel() {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => void handlePickTemplate()}
-            disabled={busy}
+            onClick={() => setExpanded((open) => !open)}
           >
-            {busy ? 'Choosing…' : 'Choose template image'}
+            {expanded ? 'Hide settings' : 'Show settings'}
           </button>
         </div>
       </div>
 
-      <div className="bot-settings-form">
-        <label className="bot-settings-checkbox">
-          <input
-            type="checkbox"
-            checked={settings.lieDetectorEnabled}
-            onChange={(event) =>
-              updateSettings({ lieDetectorEnabled: event.target.checked })
-            }
-          />
-          <span>Alert on Discord when lie detector appears</span>
-        </label>
+      {expanded && (
+        <>
+          <div className="bot-settings-form">
+            <p className="bot-settings-hint bot-settings-intro">
+              Detects the lie detector popup by its blue panel, white text, scrambled
+              numpad, and bundled reference image.
+            </p>
 
-        <label className="bot-settings-field">
-          <span>
-            Match sensitivity ({Math.round(settings.lieDetectorMatchThreshold * 100)}%)
-          </span>
-          <input
-            type="range"
-            min={0.55}
-            max={0.95}
-            step={0.01}
-            value={settings.lieDetectorMatchThreshold}
-            disabled={!settings.lieDetectorEnabled}
-            onChange={(event) =>
-              updateSettings({
-                lieDetectorMatchThreshold: Number.parseFloat(event.target.value),
-              })
-            }
-          />
-        </label>
+            <button
+              type="button"
+              className="btn btn-secondary bot-settings-template-btn"
+              onClick={() => void handlePickTemplate()}
+              disabled={busy}
+            >
+              {busy ? 'Choosing…' : 'Choose template image'}
+            </button>
 
-        <label className="bot-settings-checkbox">
-          <input
-            type="checkbox"
-            checked={settings.lieDetectorStopRoutine}
-            disabled={!settings.lieDetectorEnabled}
-            onChange={(event) =>
-              updateSettings({ lieDetectorStopRoutine: event.target.checked })
-            }
-          />
-          <span>Stop routine when lie detector is detected</span>
-        </label>
+            <label className="bot-settings-checkbox">
+              <input
+                type="checkbox"
+                checked={settings.lieDetectorEnabled}
+                onChange={(event) =>
+                  updateSettings({ lieDetectorEnabled: event.target.checked })
+                }
+              />
+              <span>Alert on Discord when lie detector appears</span>
+            </label>
 
-        <p className="bot-settings-hint">
-          Looks for the soft keyboard numpad (randomized numbers), the big blue and
-          white lie detector window, and static UI pieces from your reference screenshot.
-          Override the bundled reference with Choose template image if your UI scale differs.
-          {isSaving ? ' Saving…' : ''}
-        </p>
-      </div>
+            <label className="bot-settings-field">
+              <span>
+                Match sensitivity ({Math.round(settings.lieDetectorMatchThreshold * 100)}%)
+              </span>
+              <input
+                type="range"
+                min={0.55}
+                max={0.95}
+                step={0.01}
+                value={settings.lieDetectorMatchThreshold}
+                disabled={!settings.lieDetectorEnabled}
+                onChange={(event) =>
+                  updateSettings({
+                    lieDetectorMatchThreshold: Number.parseFloat(event.target.value),
+                  })
+                }
+              />
+            </label>
 
-      {(feedback || error) && (
-        <div className="bot-settings-feedback">
-          {feedback && <span className="bot-settings-success">{feedback}</span>}
-          {error && <span className="bot-settings-error">{error}</span>}
-        </div>
+            <label className="bot-settings-checkbox">
+              <input
+                type="checkbox"
+                checked={settings.lieDetectorStopRoutine}
+                disabled={!settings.lieDetectorEnabled}
+                onChange={(event) =>
+                  updateSettings({ lieDetectorStopRoutine: event.target.checked })
+                }
+              />
+              <span>Stop routine when lie detector is detected</span>
+            </label>
+
+            <p className="bot-settings-hint">
+              Looks for the soft keyboard numpad (randomized numbers), the big blue and
+              white lie detector window, and static UI pieces from your reference screenshot.
+              Override the bundled reference with Choose template image if your UI scale differs.
+              {isSaving ? ' Saving…' : ''}
+            </p>
+          </div>
+
+          {(feedback || error) && (
+            <div className="bot-settings-feedback">
+              {feedback && <span className="bot-settings-success">{feedback}</span>}
+              {error && <span className="bot-settings-error">{error}</span>}
+            </div>
+          )}
+        </>
       )}
     </section>
   )
