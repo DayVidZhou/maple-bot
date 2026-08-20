@@ -14,13 +14,12 @@ import {
   type AppDiscordStatus,
 } from './appStatus'
 import { getDiscordConfig, logDiscordConfigSummary } from './env'
-import { isApplicationFocused, MAPLESTORY_WORLDS_APP_NAME, focusApplication } from './apps'
+import { isApplicationFocused, MAPLESTORY_WORLDS_APP_NAME } from './apps'
 import { captureDesktopScreenshot } from './screenshot'
 import { requestDiscordRemoteAction } from './discordRemoteControl'
 import {
   formatSupportedKeysHint,
   isSupportedKey,
-  tapKey,
 } from './keyboard'
 import { discordError, discordLog, discordWarn } from './discordLog'
 import { formatDiscordDmError } from './discordDmErrors'
@@ -217,11 +216,13 @@ async function handleStatus(
 
 async function handleKeypress(
   interaction: ChatInputCommandInteraction,
+  deps: DiscordBotDeps,
   key: string,
 ) {
   const inDm = !interaction.inGuild()
+  const normalizedKey = key.trim().toLowerCase()
 
-  if (!isSupportedKey(key)) {
+  if (!isSupportedKey(normalizedKey)) {
     await interaction.reply({
       content: `Unsupported key "${key}". ${formatSupportedKeysHint()}.`,
       ephemeral: !inDm,
@@ -231,18 +232,24 @@ async function handleKeypress(
 
   discordLog('Slash command received: keypress', {
     userId: interaction.user.id,
-    key,
+    key: normalizedKey,
     inDm,
   })
 
   await interaction.deferReply(inDm ? undefined : { ephemeral: true })
-  await focusApplication(MAPLESTORY_WORLDS_APP_NAME)
-  await tapKey(key)
+  const result = await requestDiscordRemoteAction(
+    deps.getMainWindow(),
+    'keypress',
+    { key: normalizedKey },
+  )
   await deliverCommandReply(
     interaction,
-    `Pressed \`${key.trim().toLowerCase()}\` in MapleStory Worlds.`,
+    result.ok ? result.message : `Error: ${result.message}`,
   )
-  discordLog('Slash command completed: keypress', { key })
+  discordLog('Slash command completed: keypress', {
+    key: normalizedKey,
+    ok: result.ok,
+  })
 }
 
 async function handleStart(
@@ -364,7 +371,7 @@ export async function startDiscordBot(deps: DiscordBotDeps): Promise<Client | nu
 
       if (interaction.commandName === 'keypress') {
         const key = interaction.options.getString('key', true)
-        await handleKeypress(interaction, key)
+        await handleKeypress(interaction, deps, key)
         return
       }
 

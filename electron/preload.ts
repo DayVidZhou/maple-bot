@@ -33,14 +33,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onDiscordRemoteAction: (
     handler: (payload: {
       requestId: string
-      action: 'start-routine' | 'stop-routine'
+      action: 'start-routine' | 'stop-routine' | 'keypress'
+      payload?: { key?: string }
     }) => void | Promise<void>,
   ) => {
     const listener = (
       _event: Electron.IpcRendererEvent,
       payload: {
         requestId: string
-        action: 'start-routine' | 'stop-routine'
+        action: 'start-routine' | 'stop-routine' | 'keypress'
+        payload?: { key?: string }
       },
     ) => {
       void handler(payload)

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useKeyboard } from '../../hooks/useKeyboard'
 import { useRunRoutineContext } from '../../context/RunRoutineContext'
 import { useScreenCaptureContext } from '../../context/ScreenCaptureContext'
 
@@ -25,6 +26,7 @@ function describeStartBlockers(options: {
 
 export function DiscordRemoteBridge() {
   const { isCapturing } = useScreenCaptureContext()
+  const { isAvailable, tapKey } = useKeyboard()
   const {
     isRunning,
     canRun,
@@ -35,13 +37,37 @@ export function DiscordRemoteBridge() {
 
   useEffect(() => {
     const unsubscribe = window.electronAPI?.onDiscordRemoteAction?.(
-      async ({ requestId, action }) => {
+      async ({ requestId, action, payload }) => {
         const respond = (ok: boolean, message: string) => {
           window.electronAPI?.reportDiscordRemoteActionResult?.({
             requestId,
             ok,
             message,
           })
+        }
+
+        if (action === 'keypress') {
+          const key = payload?.key?.trim().toLowerCase()
+          if (!key) {
+            respond(false, 'Missing key.')
+            return
+          }
+
+          if (!isAvailable) {
+            respond(false, 'Keyboard control is not available.')
+            return
+          }
+
+          try {
+            await window.electronAPI!.focusMapleStoryWorlds()
+            await tapKey(key)
+            respond(true, `Pressed \`${key}\` in MapleStory Worlds.`)
+          } catch (err) {
+            const message =
+              err instanceof Error ? err.message : 'Key press failed'
+            respond(false, message)
+          }
+          return
         }
 
         if (action === 'stop-routine') {
@@ -87,6 +113,8 @@ export function DiscordRemoteBridge() {
     selectedRoutine,
     startRun,
     stopRun,
+    isAvailable,
+    tapKey,
   ])
 
   return null

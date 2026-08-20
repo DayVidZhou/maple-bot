@@ -29,7 +29,8 @@ export interface ElectronAPI {
   onDiscordRemoteAction: (
     handler: (payload: {
       requestId: string
-      action: 'start-routine' | 'stop-routine'
+      action: 'start-routine' | 'stop-routine' | 'keypress'
+      payload?: { key?: string }
     }) => void | Promise<void>,
   ) => (() => void) | undefined
   reportDiscordRemoteActionResult: (payload: {

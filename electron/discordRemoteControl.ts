@@ -1,7 +1,11 @@
 import type { BrowserWindow } from 'electron'
 import { randomUUID } from 'node:crypto'
 
-export type DiscordRemoteAction = 'start-routine' | 'stop-routine'
+export type DiscordRemoteAction = 'start-routine' | 'stop-routine' | 'keypress'
+
+export interface DiscordRemoteActionPayload {
+  key?: string
+}
 
 export interface DiscordRemoteActionResult {
   ok: boolean
@@ -33,6 +37,7 @@ export function resolveDiscordRemoteAction(
 export function requestDiscordRemoteAction(
   window: BrowserWindow | null,
   action: DiscordRemoteAction,
+  payload?: DiscordRemoteActionPayload,
 ): Promise<DiscordRemoteActionResult> {
   if (!window || window.isDestroyed()) {
     return Promise.resolve({
@@ -49,6 +54,10 @@ export function requestDiscordRemoteAction(
     }, REMOTE_ACTION_TIMEOUT_MS)
 
     pendingRequests.set(requestId, { resolve, reject, timeout })
-    window.webContents.send('discord:remote-action', { requestId, action })
+    window.webContents.send('discord:remote-action', {
+      requestId,
+      action,
+      payload,
+    })
   })
 }
