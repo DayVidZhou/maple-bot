@@ -19,8 +19,8 @@ export function SelectedMoveFields({
   const buttonKey = resolveMoveButtonKey(move, hotkeys)
 
   return (
-    <div className="routines-selected-move-fields">
-      <label className="routines-name-field">
+    <div className="routines-move-fields">
+      <label className="routines-name-field routines-move-field">
         <span>Key</span>
         <input
           type="text"
@@ -33,6 +33,7 @@ export function SelectedMoveFields({
         holdDurationSeconds={move.holdDurationSeconds}
         direction={move.direction}
         onChange={onChange}
+        className="routines-move-field"
       />
       <p className="routines-hint routines-move-fields-hint">
         At this point: {buttonKey ? `hold ${buttonKey}` : 'configure key in hotkeys'}{' '}

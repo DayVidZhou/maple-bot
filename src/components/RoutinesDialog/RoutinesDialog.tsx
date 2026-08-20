@@ -283,29 +283,33 @@ export function RoutinesDialog() {
                 )}
               </ul>
 
-              <HotkeyMoveSelect
-                hotkeys={hotkeys}
-                profileId={selectedHotkeyId}
-                onAdd={addMove}
-                disabled={!selectedPointId}
-              />
-
               {selectedMove && (
-                <SelectedMoveFields
-                  move={selectedMove}
-                  hotkeys={hotkeys}
-                  onChange={updateSelectedMove}
-                />
+                <div className="routines-move-section routines-move-edit-section">
+                  <h4>Edit selected move</h4>
+                  <SelectedMoveFields
+                    move={selectedMove}
+                    hotkeys={hotkeys}
+                    onChange={updateSelectedMove}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-danger routines-delete-move"
+                    onClick={deleteSelectedMove}
+                  >
+                    Delete Move
+                  </button>
+                </div>
               )}
 
-              <button
-                type="button"
-                className="btn btn-danger routines-delete-move"
-                onClick={deleteSelectedMove}
-                disabled={!selectedMoveId}
-              >
-                Delete Move
-              </button>
+              <div className="routines-move-section routines-move-add-section">
+                <h4>Add new move</h4>
+                <HotkeyMoveSelect
+                  hotkeys={hotkeys}
+                  profileId={selectedHotkeyId}
+                  onAdd={addMove}
+                  disabled={!selectedPointId}
+                />
+              </div>
             </section>
           </div>
 

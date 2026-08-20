@@ -9,6 +9,7 @@ import { RoutineProvider } from './RoutineContext'
 import { RunRoutineProvider } from './RunRoutineContext'
 import { ScreenCaptureProvider } from './ScreenCaptureContext'
 import { DiscordStatusBridge } from '../components/DiscordStatusBridge/DiscordStatusBridge'
+import { DiscordRemoteBridge } from '../components/DiscordRemoteBridge/DiscordRemoteBridge'
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -22,6 +23,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
                   <RoutineProvider>
                     <RunRoutineProvider>
                       <DiscordStatusBridge />
+                      <DiscordRemoteBridge />
                       {children}
                     </RunRoutineProvider>
                   </RoutineProvider>

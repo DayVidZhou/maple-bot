@@ -83,6 +83,15 @@ function resolveKey(key: string): Key {
   return resolved
 }
 
+export function isSupportedKey(key: string): boolean {
+  const normalized = key.trim().toLowerCase()
+  return normalized in KEY_MAP
+}
+
+export function formatSupportedKeysHint(): string {
+  return 'Examples: left, right, up, down, space, ctrl, shift, z, 1, f1'
+}
+
 export async function pressKey(key: string): Promise<void> {
   await keyboard.pressKey(resolveKey(key))
 }

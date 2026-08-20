@@ -13,6 +13,7 @@ interface MoveDurationDirectionFieldsProps {
   direction: MoveDirection | null
   onChange: (patch: Partial<MoveDefaults>) => void
   disabled?: boolean
+  className?: string
 }
 
 export function MoveDurationDirectionFields({
@@ -20,9 +21,14 @@ export function MoveDurationDirectionFields({
   direction,
   onChange,
   disabled = false,
+  className,
 }: MoveDurationDirectionFieldsProps) {
   return (
-    <div className="routines-move-defaults-fields">
+    <div
+      className={['routines-move-defaults-fields', className]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <label className="routines-name-field">
         <span>Hold duration (s)</span>
         <input

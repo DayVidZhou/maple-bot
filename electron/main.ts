@@ -24,6 +24,7 @@ import {
   type DiscordEnvConfig,
 } from './discordConfig'
 import { pressKey, releaseKey, tapKey, typeText } from './keyboard'
+import { resolveDiscordRemoteAction } from './discordRemoteControl'
 import { createRegistrySaveHandlers } from './registrySave'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -43,6 +44,7 @@ async function restartDiscordBot(): Promise<void> {
   await loadEnvFile()
   discordClient = await startDiscordBot({
     getPlatform: () => process.platform,
+    getMainWindow: () => mainWindow,
   })
   console.log('[discord] Bot restart finished', {
     connected: discordClient?.isReady?.() ?? false,
@@ -182,6 +184,19 @@ function registerIpcHandlers() {
     updateAppDiscordStatus(patch)
   })
 
+  ipcMain.on(
+    'discord:remote-action-result',
+    (
+      _event,
+      payload: { requestId: string; ok: boolean; message: string },
+    ) => {
+      resolveDiscordRemoteAction(payload.requestId, {
+        ok: payload.ok,
+        message: payload.message,
+      })
+    },
+  )
+
   ipcMain.handle(
     'discord:send-screenshot',
     async (_event, routineName?: string) => {
@@ -236,6 +251,7 @@ app.whenReady().then(async () => {
   console.log('[discord] Launching bot from app ready')
   discordClient = await startDiscordBot({
     getPlatform: () => process.platform,
+    getMainWindow: () => mainWindow,
   })
   console.log('[discord] Bot launch finished', {
     connected: discordClient?.isReady?.() ?? false,

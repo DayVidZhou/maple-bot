@@ -4,38 +4,42 @@ import {
   GatewayIntentBits,
   REST,
   Routes,
-  SlashCommandBuilder,
   type ChatInputCommandInteraction,
   type Interaction,
   type MessageCreateOptions,
 } from 'discord.js'
+import type { BrowserWindow } from 'electron'
 import {
   formatAppDiscordStatus,
   getAppDiscordStatus,
   type AppDiscordStatus,
 } from './appStatus'
 import { getDiscordConfig, logDiscordConfigSummary } from './env'
-import { isApplicationFocused, MAPLESTORY_WORLDS_APP_NAME } from './apps'
+import { isApplicationFocused, MAPLESTORY_WORLDS_APP_NAME, focusApplication } from './apps'
 import { captureDesktopScreenshot } from './screenshot'
+import { requestDiscordRemoteAction } from './discordRemoteControl'
+import {
+  formatSupportedKeysHint,
+  isSupportedKey,
+  tapKey,
+} from './keyboard'
 import { discordError, discordLog, discordWarn } from './discordLog'
 import { formatDiscordDmError } from './discordDmErrors'
+import {
+  discordSlashCommandsJson,
+  formatDiscordHelpMessage,
+} from './discordCommands'
 
 export interface DiscordBotDeps {
   getPlatform: () => NodeJS.Platform
+  getMainWindow: () => BrowserWindow | null
 }
 
 export const ROUTINE_DISCORD_SCREENSHOT_INTERVAL_MS = 30_000
 
 let activeDiscordClient: Client | null = null
 
-const slashCommands = [
-  new SlashCommandBuilder()
-    .setName('screenshot')
-    .setDescription('DM you a screenshot of MapleStory Worlds (or the desktop)'),
-  new SlashCommandBuilder()
-    .setName('status')
-    .setDescription('DM you maple-bot status'),
-].map((command) => command.toJSON())
+const slashCommands = discordSlashCommandsJson
 
 async function registerSlashCommands(token: string, clientId: string) {
   const rest = new REST({ version: '10' }).setToken(token)
@@ -220,6 +224,99 @@ async function handleStatus(
   })
 }
 
+async function handleKeypress(
+  interaction: ChatInputCommandInteraction,
+  ownerId: string,
+  key: string,
+) {
+  const inDm = !interaction.inGuild()
+
+  if (!isSupportedKey(key)) {
+    await interaction.reply({
+      content: `Unsupported key "${key}". ${formatSupportedKeysHint()}.`,
+      ephemeral: !inDm,
+    })
+    return
+  }
+
+  discordLog('Slash command received: keypress', {
+    userId: interaction.user.id,
+    key,
+    inDm,
+  })
+
+  await interaction.deferReply(inDm ? undefined : { ephemeral: true })
+  await focusApplication(MAPLESTORY_WORLDS_APP_NAME)
+  await tapKey(key)
+  await deliverToOwnerDm(
+    interaction,
+    ownerId,
+    `Pressed \`${key.trim().toLowerCase()}\` in MapleStory Worlds.`,
+  )
+  discordLog('Slash command completed: keypress', { key })
+}
+
+async function handleStart(
+  interaction: ChatInputCommandInteraction,
+  ownerId: string,
+  deps: DiscordBotDeps,
+) {
+  const inDm = !interaction.inGuild()
+  discordLog('Slash command received: start', {
+    userId: interaction.user.id,
+    inDm,
+  })
+
+  await interaction.deferReply(inDm ? undefined : { ephemeral: true })
+  const result = await requestDiscordRemoteAction(
+    deps.getMainWindow(),
+    'start-routine',
+  )
+  await deliverToOwnerDm(
+    interaction,
+    ownerId,
+    result.ok ? result.message : `Error: ${result.message}`,
+  )
+  discordLog('Slash command completed: start', { ok: result.ok })
+}
+
+async function handleHelp(
+  interaction: ChatInputCommandInteraction,
+  ownerId: string,
+) {
+  discordLog('Slash command received: help', {
+    userId: interaction.user.id,
+    inDm: !interaction.inGuild(),
+  })
+
+  await deliverToOwnerDm(interaction, ownerId, formatDiscordHelpMessage())
+  discordLog('Slash command completed: help')
+}
+
+async function handleStop(
+  interaction: ChatInputCommandInteraction,
+  ownerId: string,
+  deps: DiscordBotDeps,
+) {
+  const inDm = !interaction.inGuild()
+  discordLog('Slash command received: stop', {
+    userId: interaction.user.id,
+    inDm,
+  })
+
+  await interaction.deferReply(inDm ? undefined : { ephemeral: true })
+  const result = await requestDiscordRemoteAction(
+    deps.getMainWindow(),
+    'stop-routine',
+  )
+  await deliverToOwnerDm(
+    interaction,
+    ownerId,
+    result.ok ? result.message : `Error: ${result.message}`,
+  )
+  discordLog('Slash command completed: stop', { ok: result.ok })
+}
+
 export async function startDiscordBot(deps: DiscordBotDeps): Promise<Client | null> {
   logDiscordConfigSummary('Starting Discord bot')
 
@@ -278,6 +375,11 @@ export async function startDiscordBot(deps: DiscordBotDeps): Promise<Client | nu
     }
 
     try {
+      if (interaction.commandName === 'help') {
+        await handleHelp(interaction, ownerId!)
+        return
+      }
+
       if (interaction.commandName === 'screenshot') {
         await handleScreenshot(interaction, ownerId!)
         return
@@ -292,6 +394,22 @@ export async function startDiscordBot(deps: DiscordBotDeps): Promise<Client | nu
           getAppDiscordStatus(),
         )
         discordLog('Slash command completed: status')
+        return
+      }
+
+      if (interaction.commandName === 'keypress') {
+        const key = interaction.options.getString('key', true)
+        await handleKeypress(interaction, ownerId!, key)
+        return
+      }
+
+      if (interaction.commandName === 'start') {
+        await handleStart(interaction, ownerId!, deps)
+        return
+      }
+
+      if (interaction.commandName === 'stop') {
+        await handleStop(interaction, ownerId!, deps)
       }
     } catch (err) {
       const message =

@@ -7,12 +7,11 @@ import { detectUser, stabilizeUserDetection, usersEqual } from '../utils/detectU
 import { ROUTINE_POLL_INTERVAL_MS } from '../utils/routineRunner'
 import {
   normalizedToCanvasCoord,
-  ROUTINE_POINT_HIT_RADIUS,
 } from '../utils/focusRegionCoords'
 
-const POINT_RADIUS = ROUTINE_POINT_HIT_RADIUS
-const POINT_LINE_WIDTH = 4
-const POINT_SELECTED_LINE_WIDTH = 5
+const POINT_RADIUS = 8
+const POINT_LINE_WIDTH = 2.5
+const POINT_SELECTED_LINE_WIDTH = 3
 const CHARACTER_CIRCLE_RADIUS_SCALE = 1.45
 const CHARACTER_CIRCLE_LINE_WIDTH = 5
 

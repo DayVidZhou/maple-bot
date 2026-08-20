@@ -192,6 +192,11 @@ export function DiscordDebugPanel() {
           {status && (
             <p className="discord-debug-config">{formatConfigChecks(status)}</p>
           )}
+          {status?.connected && (
+            <p className="discord-debug-hint">
+              DM commands: /help, /screenshot, /status, /start, /stop, /keypress
+            </p>
+          )}
         </div>
 
         <div className="discord-debug-actions">

@@ -6,17 +6,24 @@
 
 .hotkey-move-select {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
 }
 
 .routines-move-defaults-fields {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
+  min-width: 0;
+}
+
+.routines-move-defaults-fields > .routines-name-field {
+  flex: 1 1 min(100%, 9rem);
+  min-width: 0;
 }
 
 .hotkey-move-select-input {
-  flex: 1;
+  flex: 1 1 min(100%, 12rem);
   min-width: 0;
   padding: 0.45rem 0.55rem;
   border: 1px solid #2a2f3d;

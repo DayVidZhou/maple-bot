@@ -30,6 +30,33 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }) => {
     ipcRenderer.send('discord:report-status', patch)
   },
+  onDiscordRemoteAction: (
+    handler: (payload: {
+      requestId: string
+      action: 'start-routine' | 'stop-routine'
+    }) => void | Promise<void>,
+  ) => {
+    const listener = (
+      _event: Electron.IpcRendererEvent,
+      payload: {
+        requestId: string
+        action: 'start-routine' | 'stop-routine'
+      },
+    ) => {
+      void handler(payload)
+    }
+    ipcRenderer.on('discord:remote-action', listener)
+    return () => {
+      ipcRenderer.removeListener('discord:remote-action', listener)
+    }
+  },
+  reportDiscordRemoteActionResult: (payload: {
+    requestId: string
+    ok: boolean
+    message: string
+  }) => {
+    ipcRenderer.send('discord:remote-action-result', payload)
+  },
   sendDiscordScreenshot: (routineName?: string) =>
     ipcRenderer.invoke('discord:send-screenshot', routineName),
   sendDiscordTestMessage: () => ipcRenderer.invoke('discord:send-test-message'),

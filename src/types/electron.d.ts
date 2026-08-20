@@ -26,6 +26,17 @@ export interface ElectronAPI {
     routinePointIndex?: number | null
     userCoords?: string | null
   }) => void
+  onDiscordRemoteAction: (
+    handler: (payload: {
+      requestId: string
+      action: 'start-routine' | 'stop-routine'
+    }) => void | Promise<void>,
+  ) => (() => void) | undefined
+  reportDiscordRemoteActionResult: (payload: {
+    requestId: string
+    ok: boolean
+    message: string
+  }) => void
   sendDiscordScreenshot: (routineName?: string) => Promise<void>
   sendDiscordTestMessage: () => Promise<void>
   getDiscordStatus: () => Promise<{
