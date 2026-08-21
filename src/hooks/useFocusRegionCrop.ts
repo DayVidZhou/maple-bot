@@ -4,6 +4,7 @@ import type { RoutinePoint } from '../types/routine'
 import type { User } from '../types/user'
 import { USER_NOT_FOUND } from '../types/user'
 import { detectUser, stabilizeUserDetection, usersEqual } from '../utils/detectUser'
+import { userTrackingResetRef } from '../utils/userTrackingReset'
 import { ROUTINE_POLL_INTERVAL_MS } from '../utils/routineRunner'
 import {
   normalizedToCanvasCoord,
@@ -105,6 +106,11 @@ export function useFocusRegionCrop(
       }
 
       ctx.drawImage(video, 0, 0, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight)
+
+      if (userTrackingResetRef.pending) {
+        lastUserRef.current = USER_NOT_FOUND
+        userTrackingResetRef.pending = false
+      }
 
       const imageData = ctx.getImageData(0, 0, cropWidth, cropHeight)
       const rawDetection = detectUser(imageData, {

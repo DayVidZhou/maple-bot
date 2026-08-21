@@ -417,7 +417,12 @@ export function stabilizeUserDetection(
   const maxJump =
     Math.max(cropWidth, cropHeight) * MAX_STABLE_JUMP_FRACTION
 
-  if (jump > maxJump) return last
+  if (jump > maxJump) {
+    // Prefer fresh detection over a stale lock — knockback often exceeds this threshold
+    // and keeping the old coords sends movement the wrong way.
+    return detected
+  }
+
   return detected
 }
 

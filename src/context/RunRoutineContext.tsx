@@ -25,6 +25,7 @@ import {
 import { BuffRunner } from '../utils/buffRunner'
 import { resolveProfileBuffs } from '../utils/resolveHotkeyAction'
 import { activityLogCoordContextRef, activityLogPositions, appendCoordDelta } from '../utils/activityLogCoords'
+import { requestUserTrackingReset } from '../utils/userTrackingReset'
 import {
   pointToMinimapCoord,
   userToMinimapCoord,
@@ -332,6 +333,7 @@ export function RunRoutineProvider({ children }: { children: ReactNode }) {
           return { width: cropWidth, height: cropHeight }
         },
         shouldAbort: () => abortRef.current,
+        resetUserTracking: requestUserTrackingReset,
         onStatus: setStatus,
         onPointIndexChange: (index) => {
           setCurrentPointIndex(index)
