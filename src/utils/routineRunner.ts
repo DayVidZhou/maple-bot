@@ -22,8 +22,12 @@ export const USER_LOCATION_LOG_MIN_GAP_MS = 500
 /** Minimap pixels — sub-pixel coords from user detection. */
 export const USER_LOCATION_MOVE_EPSILON = 0.5
 export const POINT_SIDE_EPSILON = 0.05
+/** Consecutive frames inside hit radius before treating arrival as real. */
+export const POINT_ARRIVAL_CONFIRM_FRAMES = 3
 /** Max X movement per poll tick before treating coords as a bad detection frame. */
 export const MAX_RELIABLE_X_STEP = 28
+/** Unreliable frames in a row before releasing held direction. */
+export const UNRELIABLE_FRAME_RELEASE_COUNT = 2
 
 type FacingDirection = 'left' | 'right'
 
@@ -176,11 +180,17 @@ function sideOfPoint(userX: number, pointX: number): -1 | 0 | 1 {
 function movementDirection(
   userX: number,
   pointX: number,
+  lastSide: -1 | 1 | null,
 ): 'left' | 'right' | null {
-  // Player right of point → hold left. Player left of point → hold right.
-  const side = sideOfPoint(userX, pointX)
-  if (side === 1) return 'left'
-  if (side === -1) return 'right'
+  const delta = userX - pointX
+  if (Math.abs(delta) > POINT_SIDE_EPSILON) {
+    return delta > 0 ? 'left' : 'right'
+  }
+
+  // X aligned on the minimap but not necessarily at the point — nudge horizontally
+  // or keep last heading so we don't stand still between platforms.
+  if (lastSide === 1) return 'left'
+  if (lastSide === -1) return 'right'
   return null
 }
 
@@ -204,8 +214,6 @@ async function moveToPoint(
   jumpKey: string,
   facing: FacingState,
 ): Promise<void> {
-  deps.resetUserTracking?.()
-
   let heldDirection: 'left' | 'right' | null = null
   let lastUserX: number | null = null
   let lastReliableUserX: number | null = null
@@ -213,7 +221,25 @@ async function moveToPoint(
   let lastSideOfPoint: -1 | 1 | null = null
   let lastDistanceToPoint: number | null = null
   let distanceIncreaseStart: number | null = null
+  let insidePointFrames = 0
+  let unreliableFrameCount = 0
+  let nullDirectionStart: number | null = null
+  let everHeldDirection = false
   const logUserLocation = createUserLocationLogger(deps, point)
+
+  const crop = deps.getCropSize()
+  const initialUser = deps.getUserMinimapCoord()
+  const initialPointMinimap =
+    initialUser && crop
+      ? pointToMinimapCoord(point, crop.width, crop.height)
+      : null
+  const initialDistance =
+    initialUser && initialPointMinimap
+      ? Math.hypot(
+          initialUser.x - initialPointMinimap.x,
+          initialUser.y - initialPointMinimap.y,
+        )
+      : null
 
   const releaseDirection = async () => {
     if (!heldDirection) return
@@ -247,20 +273,67 @@ async function moveToPoint(
       )
 
       if (isInsidePoint(user, pointMinimap)) {
-        deps.onStatus?.(`Arrived at ${point.name}`)
-        logRoutineActivity(
-          deps,
-          {
-            category: 'routine',
-            event: 'Hit point',
-            detail: appendCoordDelta(point.name, user, pointMinimap),
-          },
-          user,
-          pointMinimap,
-          point.name,
-        )
-        return
+        insidePointFrames += 1
+
+        const suspiciousInstantArrival =
+          insidePointFrames >= POINT_ARRIVAL_CONFIRM_FRAMES &&
+          initialDistance !== null &&
+          initialDistance > ROUTINE_POINT_HIT_RADIUS * 2 &&
+          !everHeldDirection
+
+        if (
+          insidePointFrames >= POINT_ARRIVAL_CONFIRM_FRAMES &&
+          !suspiciousInstantArrival
+        ) {
+          deps.onStatus?.(`Arrived at ${point.name}`)
+          logRoutineActivity(
+            deps,
+            {
+              category: 'routine',
+              event: 'Hit point',
+              detail: appendCoordDelta(point.name, user, pointMinimap),
+            },
+            user,
+            pointMinimap,
+            point.name,
+          )
+          return
+        }
+
+        if (suspiciousInstantArrival) {
+          insidePointFrames = 0
+          logRoutineActivity(
+            deps,
+            {
+              category: 'routine',
+              event: 'False arrival',
+              detail: appendCoordDelta(
+                `${point.name} · reset tracking`,
+                user,
+                pointMinimap,
+              ),
+            },
+            user,
+            pointMinimap,
+            point.name,
+          )
+          deps.resetUserTracking?.()
+          await releaseDirection()
+          lastReliableUserX = null
+          lastDistanceToPoint = null
+          nullDirectionStart = null
+          await tickBuffs(deps)
+          await sleep(ROUTINE_POLL_INTERVAL_MS)
+          continue
+        }
+
+        deps.onStatus?.(`Confirming ${point.name}...`)
+        await tickBuffs(deps)
+        await sleep(ROUTINE_POLL_INTERVAL_MS)
+        continue
       }
+
+      insidePointFrames = 0
 
       const xStep =
         lastReliableUserX !== null
@@ -270,7 +343,8 @@ async function moveToPoint(
         lastReliableUserX === null || xStep <= MAX_RELIABLE_X_STEP
 
       if (!isReliableFrame) {
-        if (heldDirection) {
+        unreliableFrameCount += 1
+        if (heldDirection && unreliableFrameCount >= UNRELIABLE_FRAME_RELEASE_COUNT) {
           logRoutineActivity(
             deps,
             {
@@ -291,6 +365,8 @@ async function moveToPoint(
         await sleep(ROUTINE_POLL_INTERVAL_MS)
         continue
       }
+
+      unreliableFrameCount = 0
 
       const distanceToPoint = Math.hypot(
         user.x - pointMinimap.x,
@@ -360,7 +436,7 @@ async function moveToPoint(
         lastSideOfPoint = currentSide
       }
 
-      const direction = movementDirection(user.x, pointMinimap.x)
+      const direction = movementDirection(user.x, pointMinimap.x, lastSideOfPoint)
 
       if (direction !== heldDirection) {
         if (heldDirection) {
@@ -383,13 +459,43 @@ async function moveToPoint(
           )
           await deps.keyboard.pressKey(direction)
           heldDirection = direction
+          everHeldDirection = true
           facing.direction = direction
           lastUserX = user.x
           lastXChangeTime = Date.now()
+          nullDirectionStart = null
         } else {
           lastUserX = user.x
           lastXChangeTime = Date.now()
         }
+      }
+
+      if (!heldDirection) {
+        if (nullDirectionStart === null) {
+          nullDirectionStart = Date.now()
+        } else if (Date.now() - nullDirectionStart >= STUCK_X_THRESHOLD_MS) {
+          logRoutineActivity(
+            deps,
+            {
+              category: 'routine',
+              event: 'Stuck — jump',
+              key: jumpKey,
+              detail: appendCoordDelta(
+                `No direction · ${point.name}`,
+                user,
+                pointMinimap,
+              ),
+            },
+            user,
+            pointMinimap,
+          )
+          await deps.keyboard.tapKey(jumpKey)
+          deps.resetUserTracking?.()
+          nullDirectionStart = Date.now()
+          lastReliableUserX = null
+        }
+      } else {
+        nullDirectionStart = null
       }
 
       if (heldDirection && lastUserX !== null) {
