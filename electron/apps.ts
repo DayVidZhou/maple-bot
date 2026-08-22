@@ -24,6 +24,9 @@ async function runPowerShell(script: string): Promise<string> {
   return stdout.trim()
 }
 
+const WIN32_SW_SHOW = 5
+const WIN32_SW_MAXIMIZE = 3
+
 const WIN32_FOCUS_SCRIPT = `
 Add-Type @"
 using System;
@@ -38,7 +41,18 @@ public class MapleBotWin32 {
 "@ | Out-Null
 `.trim()
 
-function buildFocusApplicationWindowsScript(name: string): string {
+function isMapleStoryWorldsTarget(name: string): boolean {
+  const normalized = name.trim().toLowerCase()
+  return (
+    normalized === MAPLESTORY_WORLDS_APP_NAME.toLowerCase() ||
+    normalized.includes('maplestory')
+  )
+}
+
+function buildFocusApplicationWindowsScript(
+  name: string,
+  showCommand: number,
+): string {
   const target = escapePowerShellSingleQuotedString(name)
   return `
 ${WIN32_FOCUS_SCRIPT}
@@ -54,7 +68,7 @@ $proc = Get-Process | Where-Object {
 if ($null -eq $proc) {
   throw "Application not found: $target"
 }
-[void][MapleBotWin32]::ShowWindowAsync($proc.MainWindowHandle, 9)
+[void][MapleBotWin32]::ShowWindowAsync($proc.MainWindowHandle, ${showCommand})
 if (-not [MapleBotWin32]::SetForegroundWindow($proc.MainWindowHandle)) {
   throw "Failed to focus: $target"
 }
@@ -111,7 +125,10 @@ export async function focusApplication(name: string): Promise<void> {
   }
 
   if (process.platform === 'win32') {
-    await runPowerShell(buildFocusApplicationWindowsScript(name))
+    const showCommand = isMapleStoryWorldsTarget(name)
+      ? WIN32_SW_MAXIMIZE
+      : WIN32_SW_SHOW
+    await runPowerShell(buildFocusApplicationWindowsScript(name, showCommand))
     return
   }
 
