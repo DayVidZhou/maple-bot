@@ -28,6 +28,8 @@ export const POINT_ARRIVAL_CONFIRM_FRAMES = 3
 export const MAX_RELIABLE_X_STEP = 28
 /** Unreliable frames in a row before releasing held direction. */
 export const UNRELIABLE_FRAME_RELEASE_COUNT = 2
+/** Stable observations before resyncing after a large detection jump. */
+export const STABLE_OBSERVATION_RESYNC_COUNT = 2
 
 type FacingDirection = 'left' | 'right'
 
@@ -194,6 +196,13 @@ function movementDirection(
   return null
 }
 
+function isSameObservation(a: Coordinates, b: Coordinates): boolean {
+  return (
+    Math.abs(a.x - b.x) <= USER_LOCATION_MOVE_EPSILON &&
+    Math.abs(a.y - b.y) <= USER_LOCATION_MOVE_EPSILON
+  )
+}
+
 async function waitWhile(
   deps: RoutineRunnerDeps,
   predicate: () => boolean,
@@ -225,6 +234,8 @@ async function moveToPoint(
   let unreliableFrameCount = 0
   let nullDirectionStart: number | null = null
   let everHeldDirection = false
+  let lastObservedUser: Coordinates | null = null
+  let stableObservationCount = 0
   const logUserLocation = createUserLocationLogger(deps, point)
 
   const crop = deps.getCropSize()
@@ -335,12 +346,43 @@ async function moveToPoint(
 
       insidePointFrames = 0
 
+      if (lastObservedUser && isSameObservation(user, lastObservedUser)) {
+        stableObservationCount += 1
+      } else {
+        lastObservedUser = user
+        stableObservationCount = 1
+      }
+
       const xStep =
         lastReliableUserX !== null
           ? Math.abs(user.x - lastReliableUserX)
           : 0
-      const isReliableFrame =
+      let isReliableFrame =
         lastReliableUserX === null || xStep <= MAX_RELIABLE_X_STEP
+
+      if (
+        !isReliableFrame &&
+        stableObservationCount >= STABLE_OBSERVATION_RESYNC_COUNT
+      ) {
+        logRoutineActivity(
+          deps,
+          {
+            category: 'routine',
+            event: 'Resync position',
+            detail: appendCoordDelta(
+              `${point.name} · stable after jump`,
+              user,
+              pointMinimap,
+            ),
+          },
+          user,
+          pointMinimap,
+          point.name,
+        )
+        lastReliableUserX = user.x
+        isReliableFrame = true
+        unreliableFrameCount = 0
+      }
 
       if (!isReliableFrame) {
         unreliableFrameCount += 1
@@ -360,20 +402,16 @@ async function moveToPoint(
           lastDistanceToPoint = null
           distanceIncreaseStart = null
         }
-        deps.onStatus?.(`Moving to ${point.name}...`)
-        await tickBuffs(deps)
-        await sleep(ROUTINE_POLL_INTERVAL_MS)
-        continue
+      } else {
+        unreliableFrameCount = 0
       }
-
-      unreliableFrameCount = 0
 
       const distanceToPoint = Math.hypot(
         user.x - pointMinimap.x,
         user.y - pointMinimap.y,
       )
 
-      if (heldDirection && lastDistanceToPoint !== null) {
+      if (isReliableFrame && heldDirection && lastDistanceToPoint !== null) {
         if (distanceToPoint > lastDistanceToPoint + USER_LOCATION_MOVE_EPSILON) {
           if (distanceIncreaseStart === null) {
             distanceIncreaseStart = Date.now()
@@ -437,14 +475,15 @@ async function moveToPoint(
       }
 
       const direction = movementDirection(user.x, pointMinimap.x, lastSideOfPoint)
+      const canChangeDirection = isReliableFrame
 
       if (direction !== heldDirection) {
-        if (heldDirection) {
+        if (heldDirection && canChangeDirection) {
           await deps.keyboard.releaseKey(heldDirection)
           heldDirection = null
         }
 
-        if (direction) {
+        if (direction && !heldDirection) {
           logRoutineActivity(
             deps,
             {
@@ -464,7 +503,7 @@ async function moveToPoint(
           lastUserX = user.x
           lastXChangeTime = Date.now()
           nullDirectionStart = null
-        } else {
+        } else if (!direction) {
           lastUserX = user.x
           lastXChangeTime = Date.now()
         }
@@ -519,7 +558,9 @@ async function moveToPoint(
         }
       }
 
-      lastReliableUserX = user.x
+      if (isReliableFrame) {
+        lastReliableUserX = user.x
+      }
       lastDistanceToPoint = distanceToPoint
 
       deps.onStatus?.(`Moving to ${point.name}...`)
