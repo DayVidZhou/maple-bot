@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import {
   formatActivityLogTime,
   type ActivityLogEntry,
 } from '../../types/activityLog'
+import { copyActivityLogToClipboard } from '../../utils/copyActivityLog'
 import './ActivityLogTable.css'
 
 interface ActivityLogTableProps {
@@ -17,11 +19,37 @@ export function ActivityLogTable({
   onLogUserLocation,
   canLogUserLocation = false,
 }: ActivityLogTableProps) {
+  const [copyFeedback, setCopyFeedback] = useState<string | null>(null)
+
+  const handleCopy = async () => {
+    try {
+      await copyActivityLogToClipboard(entries)
+      setCopyFeedback('Copied!')
+      window.setTimeout(() => setCopyFeedback(null), 2000)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to copy activity log'
+      setCopyFeedback(message)
+      window.setTimeout(() => setCopyFeedback(null), 3000)
+    }
+  }
+
   return (
     <div className="activity-log">
       <div className="activity-log-header">
         <h3>Activity Log</h3>
         <div className="activity-log-header-actions">
+          {copyFeedback && (
+            <span className="activity-log-copy-feedback">{copyFeedback}</span>
+          )}
+          <button
+            type="button"
+            className="btn btn-secondary activity-log-copy"
+            onClick={() => void handleCopy()}
+            disabled={entries.length === 0}
+          >
+            Copy all
+          </button>
           {onLogUserLocation && (
             <button
               type="button"

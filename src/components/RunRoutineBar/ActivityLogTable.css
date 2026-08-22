@@ -26,9 +26,16 @@
 }
 
 .activity-log-clear,
+.activity-log-copy,
 .activity-log-log-location {
   padding: 0.35rem 0.75rem;
   font-size: 0.8rem;
+}
+
+.activity-log-copy-feedback {
+  align-self: center;
+  font-size: 0.8rem;
+  color: #86efac;
 }
 
 .activity-log-table-wrap {
