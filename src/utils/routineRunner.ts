@@ -16,6 +16,8 @@ import { activityLogPositions, appendCoordDelta } from './activityLogCoords'
 import { pointToMinimapCoord } from './userCoords'
 
 export const ROUTINE_POLL_INTERVAL_MS = 50
+/** Faster loop while walking to a point — checks arrival more often. */
+export const ROUTINE_MOVEMENT_POLL_INTERVAL_MS = 20
 export const STUCK_X_THRESHOLD_MS = 500
 export const USER_LOCATION_LOG_INTERVAL_MS = 500
 export const USER_LOCATION_LOG_MIN_GAP_MS = 500
@@ -23,11 +25,13 @@ export const USER_LOCATION_LOG_MIN_GAP_MS = 500
 export const USER_LOCATION_MOVE_EPSILON = 0.5
 export const POINT_SIDE_EPSILON = 0.05
 /** Minimap pixels — stop holding direction this close on X to avoid overshooting. */
-export const APPROACH_HYSTERESIS_PX = 6
+export const APPROACH_HYSTERESIS_PX = ROUTINE_POINT_HIT_RADIUS
 /** Pause before reversing direction after crossing the point on X. */
-export const OVERSHOOT_PAUSE_MS = 400
+export const OVERSHOOT_PAUSE_MS = 600
 /** Consecutive frames inside hit radius before treating arrival as real. */
-export const POINT_ARRIVAL_CONFIRM_FRAMES = 3
+export const POINT_ARRIVAL_CONFIRM_FRAMES = 2
+/** Stop steering horizontally within this distance — coast and confirm arrival. */
+export const POINT_SETTLING_RADIUS = ROUTINE_POINT_HIT_RADIUS * 2
 /** Max X movement per poll tick before treating coords as a bad detection frame. */
 export const MAX_RELIABLE_X_STEP = 28
 /** Unreliable frames in a row before releasing held direction. */
@@ -177,6 +181,14 @@ function isInsidePoint(user: Coordinates, pointMinimap: Coordinates): boolean {
   )
 }
 
+function distanceToPoint(user: Coordinates, pointMinimap: Coordinates): number {
+  return Math.hypot(user.x - pointMinimap.x, user.y - pointMinimap.y)
+}
+
+function isNearPoint(user: Coordinates, pointMinimap: Coordinates): boolean {
+  return distanceToPoint(user, pointMinimap) <= POINT_SETTLING_RADIUS
+}
+
 function sideOfPoint(userX: number, pointX: number): -1 | 0 | 1 {
   const delta = userX - pointX
   if (Math.abs(delta) <= POINT_SIDE_EPSILON) return 0
@@ -265,20 +277,24 @@ async function moveToPoint(
 
       if (!user || !crop) {
         deps.onStatus?.(`Waiting for user marker near ${point.name}...`)
-        await sleep(ROUTINE_POLL_INTERVAL_MS)
+        await sleep(ROUTINE_MOVEMENT_POLL_INTERVAL_MS)
         continue
       }
 
       const pointMinimap = pointToMinimapCoord(point, crop.width, crop.height)
+      const dist = distanceToPoint(user, pointMinimap)
 
       logUserLocation(
         user,
         heldDirection
           ? `Moving ${heldDirection} → ${point.name}`
-          : `Targeting ${point.name}`,
+          : dist <= POINT_SETTLING_RADIUS
+            ? `Settling at ${point.name}`
+            : `Targeting ${point.name}`,
       )
 
       if (isInsidePoint(user, pointMinimap)) {
+        await releaseDirection()
         insidePointFrames += 1
 
         const suspiciousInstantArrival =
@@ -324,22 +340,38 @@ async function moveToPoint(
             point.name,
           )
           deps.resetUserTracking?.()
-          await releaseDirection()
           lastReliableUserX = null
           lastDistanceToPoint = null
           nullDirectionStart = null
           await tickBuffs(deps)
-          await sleep(ROUTINE_POLL_INTERVAL_MS)
+          await sleep(ROUTINE_MOVEMENT_POLL_INTERVAL_MS)
           continue
         }
 
         deps.onStatus?.(`Confirming ${point.name}...`)
         await tickBuffs(deps)
-        await sleep(ROUTINE_POLL_INTERVAL_MS)
+        await sleep(ROUTINE_MOVEMENT_POLL_INTERVAL_MS)
+        continue
+      }
+
+      if (insidePointFrames > 0 && isNearPoint(user, pointMinimap)) {
+        await releaseDirection()
+        deps.onStatus?.(`Confirming ${point.name}...`)
+        await tickBuffs(deps)
+        await sleep(ROUTINE_MOVEMENT_POLL_INTERVAL_MS)
         continue
       }
 
       insidePointFrames = 0
+
+      if (isNearPoint(user, pointMinimap)) {
+        await releaseDirection()
+        directionBlockedUntil = Date.now() + OVERSHOOT_PAUSE_MS
+        deps.onStatus?.(`Settling at ${point.name}...`)
+        await tickBuffs(deps)
+        await sleep(ROUTINE_MOVEMENT_POLL_INTERVAL_MS)
+        continue
+      }
 
       if (lastObservedUser && isSameObservation(user, lastObservedUser)) {
         stableObservationCount += 1
@@ -401,13 +433,10 @@ async function moveToPoint(
         unreliableFrameCount = 0
       }
 
-      const distanceToPoint = Math.hypot(
-        user.x - pointMinimap.x,
-        user.y - pointMinimap.y,
-      )
+      const distanceToPointValue = dist
 
       if (isReliableFrame && heldDirection && lastDistanceToPoint !== null) {
-        if (distanceToPoint > lastDistanceToPoint + USER_LOCATION_MOVE_EPSILON) {
+        if (distanceToPointValue > lastDistanceToPoint + USER_LOCATION_MOVE_EPSILON) {
           if (distanceIncreaseStart === null) {
             distanceIncreaseStart = Date.now()
           } else if (
@@ -435,7 +464,7 @@ async function moveToPoint(
             lastDistanceToPoint = null
             distanceIncreaseStart = null
             await tickBuffs(deps)
-            await sleep(ROUTINE_POLL_INTERVAL_MS)
+            await sleep(ROUTINE_MOVEMENT_POLL_INTERVAL_MS)
             continue
           }
         } else {
@@ -474,7 +503,7 @@ async function moveToPoint(
       const direction = movementDirection(user.x, pointMinimap.x)
       const canChangeDirection = isReliableFrame
       const nearPointX =
-        Math.abs(user.x - pointMinimap.x) <= ROUTINE_POINT_HIT_RADIUS * 2
+        Math.abs(user.x - pointMinimap.x) <= POINT_SETTLING_RADIUS
       const directionBlocked =
         Date.now() < directionBlockedUntil && nearPointX
 
@@ -566,11 +595,11 @@ async function moveToPoint(
       if (isReliableFrame) {
         lastReliableUserX = user.x
       }
-      lastDistanceToPoint = distanceToPoint
+      lastDistanceToPoint = distanceToPointValue
 
       deps.onStatus?.(`Moving to ${point.name}...`)
       await tickBuffs(deps)
-      await sleep(ROUTINE_POLL_INTERVAL_MS)
+      await sleep(ROUTINE_MOVEMENT_POLL_INTERVAL_MS)
     }
   } finally {
     await releaseDirection()
