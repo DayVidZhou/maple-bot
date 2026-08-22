@@ -22,6 +22,10 @@ export const USER_LOCATION_LOG_MIN_GAP_MS = 500
 /** Minimap pixels — sub-pixel coords from user detection. */
 export const USER_LOCATION_MOVE_EPSILON = 0.5
 export const POINT_SIDE_EPSILON = 0.05
+/** Minimap pixels — stop holding direction this close on X to avoid overshooting. */
+export const APPROACH_HYSTERESIS_PX = 6
+/** Pause before reversing direction after crossing the point on X. */
+export const OVERSHOOT_PAUSE_MS = 400
 /** Consecutive frames inside hit radius before treating arrival as real. */
 export const POINT_ARRIVAL_CONFIRM_FRAMES = 3
 /** Max X movement per poll tick before treating coords as a bad detection frame. */
@@ -179,20 +183,10 @@ function sideOfPoint(userX: number, pointX: number): -1 | 0 | 1 {
   return delta > 0 ? 1 : -1
 }
 
-function movementDirection(
-  userX: number,
-  pointX: number,
-  lastSide: -1 | 1 | null,
-): 'left' | 'right' | null {
+function movementDirection(userX: number, pointX: number): 'left' | 'right' | null {
   const delta = userX - pointX
-  if (Math.abs(delta) > POINT_SIDE_EPSILON) {
-    return delta > 0 ? 'left' : 'right'
-  }
-
-  // X aligned on the minimap but not necessarily at the point — nudge horizontally
-  // or keep last heading so we don't stand still between platforms.
-  if (lastSide === 1) return 'left'
-  if (lastSide === -1) return 'right'
+  if (delta > APPROACH_HYSTERESIS_PX) return 'left'
+  if (delta < -APPROACH_HYSTERESIS_PX) return 'right'
   return null
 }
 
@@ -236,6 +230,7 @@ async function moveToPoint(
   let everHeldDirection = false
   let lastObservedUser: Coordinates | null = null
   let stableObservationCount = 0
+  let directionBlockedUntil = 0
   const logUserLocation = createUserLocationLogger(deps, point)
 
   const crop = deps.getCropSize()
@@ -469,13 +464,23 @@ async function moveToPoint(
           pointMinimap,
           point.name,
         )
+        await releaseDirection()
+        directionBlockedUntil = Date.now() + OVERSHOOT_PAUSE_MS
       }
       if (currentSide !== 0) {
         lastSideOfPoint = currentSide
       }
 
-      const direction = movementDirection(user.x, pointMinimap.x, lastSideOfPoint)
+      const direction = movementDirection(user.x, pointMinimap.x)
       const canChangeDirection = isReliableFrame
+      const nearPointX =
+        Math.abs(user.x - pointMinimap.x) <= ROUTINE_POINT_HIT_RADIUS * 2
+      const directionBlocked =
+        Date.now() < directionBlockedUntil && nearPointX
+
+      if (direction === null && heldDirection) {
+        await releaseDirection()
+      }
 
       if (direction !== heldDirection) {
         if (heldDirection && canChangeDirection) {
@@ -483,7 +488,7 @@ async function moveToPoint(
           heldDirection = null
         }
 
-        if (direction && !heldDirection) {
+        if (direction && !heldDirection && !directionBlocked) {
           logRoutineActivity(
             deps,
             {
@@ -684,38 +689,6 @@ async function executeMove(
   }
 }
 
-async function realignToPointIfNeeded(
-  deps: RoutineRunnerDeps,
-  point: RoutinePoint,
-  jumpKey: string,
-  facing: FacingState,
-): Promise<void> {
-  const user = deps.getUserMinimapCoord()
-  const crop = deps.getCropSize()
-  if (!user || !crop) return
-
-  const pointMinimap = pointToMinimapCoord(point, crop.width, crop.height)
-  if (isInsidePoint(user, pointMinimap)) return
-
-  logRoutineActivity(
-    deps,
-    {
-      category: 'routine',
-      event: 'Re-align to point',
-      detail: appendCoordDelta(
-        `${point.name} · drifted during moves`,
-        user,
-        pointMinimap,
-      ),
-    },
-    user,
-    pointMinimap,
-    point.name,
-  )
-
-  await moveToPoint(deps, point, jumpKey, facing)
-}
-
 async function executePointMoves(
   deps: RoutineRunnerDeps,
   point: RoutinePoint,
@@ -831,7 +804,6 @@ export async function runRoutineLoop(
         point,
       )
       await executePointMoves(deps, point, hotkeys, facing)
-      await realignToPointIfNeeded(deps, point, jumpKey, facing)
       await tickBuffs(deps)
     }
   }
