@@ -1,5 +1,7 @@
 import { useCallback, useState } from 'react'
 
+const WINDOWS_CAPTURE_FRAME_RATE = { ideal: 15, max: 20 }
+
 export function useScreenCapture() {
   const [stream, setStream] = useState<MediaStream | null>(null)
   const [isCapturing, setIsCapturing] = useState(false)
@@ -9,8 +11,9 @@ export function useScreenCapture() {
     setError(null)
 
     try {
+      const isWindows = window.electronAPI?.getPlatform?.() === 'win32'
       const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: isWindows ? { frameRate: WINDOWS_CAPTURE_FRAME_RATE } : true,
         audio: false,
       })
 

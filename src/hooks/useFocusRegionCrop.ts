@@ -10,6 +10,22 @@ import {
   normalizedToCanvasCoord,
 } from '../utils/focusRegionCoords'
 
+type VideoFrameRequestCallbackMetadata = {
+  mediaTime?: number
+}
+
+type VideoWithFrameCallback = HTMLVideoElement & {
+  requestVideoFrameCallback?(
+    callback: (
+      now: DOMHighResTimeStamp,
+      metadata: VideoFrameRequestCallbackMetadata,
+    ) => void,
+  ): number
+  cancelVideoFrameCallback?(id: number): void
+}
+
+const FALLBACK_POLL_INTERVAL_MS = ROUTINE_POLL_INTERVAL_MS
+
 const POINT_RADIUS = 8
 const POINT_LINE_WIDTH = 2.5
 const POINT_SELECTED_LINE_WIDTH = 3
@@ -50,6 +66,8 @@ export function useFocusRegionCrop(
   }) => void,
 ) {
   const intervalRef = useRef<number>(0)
+  const videoFrameCallbackRef = useRef<number | null>(null)
+  const lastProcessedMediaTimeRef = useRef<number | null>(null)
   const lastUserRef = useRef<User>(USER_NOT_FOUND)
   const onFrameRef = useRef(onFrame)
   const pointsRef = useRef(points)
@@ -83,10 +101,20 @@ export function useFocusRegionCrop(
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
 
-    const drawFocusRegion = () => {
+    const drawFocusRegion = (mediaTime?: number) => {
       if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
         return
       }
+
+      const frameTime = mediaTime ?? video.currentTime
+      if (
+        mediaTime == null &&
+        lastProcessedMediaTimeRef.current !== null &&
+        frameTime === lastProcessedMediaTimeRef.current
+      ) {
+        return
+      }
+      lastProcessedMediaTimeRef.current = frameTime
 
       const sourceWidth = video.videoWidth
       const sourceHeight = video.videoHeight
@@ -161,14 +189,48 @@ export function useFocusRegionCrop(
       }
     }
 
+    const videoWithFrameCallback = video as VideoWithFrameCallback
+    let cancelled = false
+
+    const supportsVideoFrameCallback =
+      typeof videoWithFrameCallback.requestVideoFrameCallback === 'function'
+
+    const scheduleVideoFrame = () => {
+      if (cancelled || !supportsVideoFrameCallback) return
+
+      videoFrameCallbackRef.current = videoWithFrameCallback.requestVideoFrameCallback!(
+        (_now, metadata) => {
+          if (cancelled) return
+          drawFocusRegion(metadata.mediaTime)
+          scheduleVideoFrame()
+        },
+      )
+    }
+
     drawFocusRegion()
-    intervalRef.current = window.setInterval(
-      drawFocusRegion,
-      ROUTINE_POLL_INTERVAL_MS,
-    )
+
+    if (supportsVideoFrameCallback) {
+      scheduleVideoFrame()
+    } else {
+      intervalRef.current = window.setInterval(
+        () => drawFocusRegion(),
+        FALLBACK_POLL_INTERVAL_MS,
+      )
+    }
 
     return () => {
+      cancelled = true
       window.clearInterval(intervalRef.current)
+      if (
+        videoFrameCallbackRef.current !== null &&
+        typeof videoWithFrameCallback.cancelVideoFrameCallback === 'function'
+      ) {
+        videoWithFrameCallback.cancelVideoFrameCallback(
+          videoFrameCallbackRef.current,
+        )
+      }
+      videoFrameCallbackRef.current = null
+      lastProcessedMediaTimeRef.current = null
     }
   }, [
     videoRef,
